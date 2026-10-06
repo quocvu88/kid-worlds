@@ -165,6 +165,7 @@ class TopicStoreService extends ChangeNotifier {
         themeColor: packData['theme_color'] as String?,
         isDownloaded: true,
         version: (packData['version'] as num?)?.toInt() ?? 1,
+        selectedGames: Topic.fromMap(packData).selectedGames,
       );
 
       // 2. Parse items with all multi-sensory attributes

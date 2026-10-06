@@ -43,6 +43,7 @@ class TopicItem {
   final String? promptQuestionVi;
   final String? promptQuestionEn;
   final String? actionHintVi;
+  final String? coloringOutlineUrl;
 
   TopicItem({
     required this.id,
@@ -64,6 +65,7 @@ class TopicItem {
     this.promptQuestionVi,
     this.promptQuestionEn,
     this.actionHintVi,
+    this.coloringOutlineUrl,
   });
 
   List<String> get images {
@@ -198,6 +200,7 @@ class TopicItem {
       'prompt_question_vi': promptQuestionVi,
       'prompt_question_en': promptQuestionEn,
       'action_hint_vi': actionHintVi,
+      'coloring_outline_url': coloringOutlineUrl,
     };
   }
 
@@ -222,6 +225,7 @@ class TopicItem {
       promptQuestionVi: map['prompt_question_vi'] as String?,
       promptQuestionEn: map['prompt_question_en'] as String?,
       actionHintVi: map['action_hint_vi'] as String?,
+      coloringOutlineUrl: map['coloring_outline_url'] as String?,
     );
   }
 }

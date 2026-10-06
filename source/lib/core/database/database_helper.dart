@@ -61,6 +61,7 @@ class DatabaseHelper {
     final topicColumns = [
       'background_path TEXT',
       'theme_color TEXT',
+      'selected_games_json TEXT',
     ];
     for (final col in topicColumns) {
       try {
@@ -80,6 +81,7 @@ class DatabaseHelper {
       'prompt_question_vi TEXT',
       'prompt_question_en TEXT',
       'action_hint_vi TEXT',
+      'coloring_outline_url TEXT',
     ];
     for (final col in itemColumns) {
       try {
@@ -128,7 +130,8 @@ class DatabaseHelper {
         background_path TEXT,
         theme_color TEXT,
         is_downloaded BOOLEAN DEFAULT 1,
-        version INTEGER DEFAULT 1
+        version INTEGER DEFAULT 1,
+        selected_games_json TEXT DEFAULT '["coloring","memory_match"]'
       )
     ''');
 
@@ -154,6 +157,7 @@ class DatabaseHelper {
         prompt_question_vi TEXT,
         prompt_question_en TEXT,
         action_hint_vi TEXT,
+        coloring_outline_url TEXT,
         FOREIGN KEY(topic_id) REFERENCES topics(id) ON DELETE CASCADE
       )
     ''');

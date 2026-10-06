@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Topic {
   final String id;
   final String titleVi;
@@ -11,6 +13,7 @@ class Topic {
   final String? themeColor;
   final bool isDownloaded;
   final int version;
+  final List<String> selectedGames;
 
   Topic({
     required this.id,
@@ -25,6 +28,7 @@ class Topic {
     this.themeColor,
     this.isDownloaded = false,
     this.version = 1,
+    this.selectedGames = const ['coloring', 'memory_match'],
   });
 
   /// Get appropriate themed background for this topic pack
@@ -60,10 +64,24 @@ class Topic {
       'theme_color': themeColor,
       'is_downloaded': isDownloaded ? 1 : 0,
       'version': version,
+      'selected_games_json': jsonEncode(selectedGames),
     };
   }
 
   factory Topic.fromMap(Map<String, dynamic> map) {
+    List<String> parsedGames = const ['coloring', 'memory_match'];
+    final rawGames = map['selected_games_json'];
+    if (rawGames is String && rawGames.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawGames);
+        if (decoded is List) {
+          parsedGames = decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    } else if (map['selected_games'] is List) {
+      parsedGames = (map['selected_games'] as List).map((e) => e.toString()).toList();
+    }
+
     return Topic(
       id: map['id'] as String,
       titleVi: map['title_vi'] as String,
@@ -77,6 +95,7 @@ class Topic {
       themeColor: map['theme_color'] as String?,
       isDownloaded: (map['is_downloaded'] as int? ?? 0) == 1,
       version: map['version'] as int? ?? 1,
+      selectedGames: parsedGames,
     );
   }
 
@@ -93,6 +112,7 @@ class Topic {
     String? themeColor,
     bool? isDownloaded,
     int? version,
+    List<String>? selectedGames,
   }) {
     return Topic(
       id: id ?? this.id,
@@ -107,6 +127,7 @@ class Topic {
       themeColor: themeColor ?? this.themeColor,
       isDownloaded: isDownloaded ?? this.isDownloaded,
       version: version ?? this.version,
+      selectedGames: selectedGames ?? this.selectedGames,
     );
   }
 }
