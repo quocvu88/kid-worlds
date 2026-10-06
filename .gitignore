@@ -1,0 +1,67 @@
+# ==========================================
+# KidsWorld Root .gitignore
+# ==========================================
+
+# Flutter / Dart
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/coverage/
+**/doc/api/
+**/.widget_preview/
+
+# Android build artifacts
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/.gradle/
+**/android/local.properties
+**/android/captures/
+
+# iOS / macOS build artifacts
+**/ios/Flutter/.last_build_id
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/macos/Pods/
+**/macos/Flutter/ephemeral/
+
+# Windows / Linux build
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+
+# IDE & Editors
+.idea/
+**/.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+**/.vscode/
+
+# Web / Node
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Logs & Temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+*~

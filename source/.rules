@@ -1,0 +1,16 @@
+# KIDS WORLD - CODING & UI/UX RULES
+
+## 1. MANDATORY RESPONSIVE DESIGN (PORTRAIT & LANDSCAPE)
+- Tất cả các màn hình, widget, dialog và popup khi thiết kế BẮT BUỘC phải thích ứng hoàn hảo cho cả **Màn hình Dọc (Portrait)** và **Màn hình Ngang (Landscape)**.
+- Khi xoay màn hình (orientation change):
+  - Chiều dọc: Lưới 2 cột hoặc danh sách cuộn dọc.
+  - Chiều ngang: Lưới 3-4 cột hoặc chia 2 nửa (Row: Trái / Phải) tận dụng chiều ngang màn hình.
+  - Tuyệt đối không để xảy ra lỗi RenderFlex overflow (bọc trong `SingleChildScrollView`, `Flexible`, `Expanded`).
+
+## 2. KIDS-APP-UIUX-DESIGNER STANDARDS
+- Touch target lớn: tối thiểu 48x48 dp, nút bấm chính 56–72 dp.
+- Bo góc tròn mượt mà: `BorderRadius.circular(20)` đến `circular(32)`.
+- Phản hồi xúc giác `HapticFeedback.lightImpact()` hoặc `mediumImpact()` khi chạm/nhấn nút.
+- Hoạt ảnh nảy mượt mà (`flutter_animate`).
+- Parent Hub theo phong cách Bento Grid hiện đại.
+- Sleep Screen màu đêm êm dịu, mascot thở nhẹ.
