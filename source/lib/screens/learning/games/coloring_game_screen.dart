@@ -355,137 +355,213 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     );
   }
 
+  // Màn hình ngang (Landscape): Cụm công cụ bên trái, nét vẽ ô tròn bên phải, bảng màu ở cạnh dưới
   Widget _buildLandscapeLayout() {
-    return Row(
+    return Column(
       children: [
-        // Left Column: Tools & Sizes
-        Container(
-          width: 76,
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-          color: Colors.white,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        Expanded(
+          child: Row(
             children: [
-              _buildToolButton(
-                icon: Icons.brush_rounded,
-                label: 'Cọ',
-                isSelected: !_isEraser,
-                onTap: () => setState(() => _isEraser = false),
-              ),
-              _buildToolButton(
-                icon: Icons.cleaning_services_rounded,
-                label: 'Tẩy',
-                isSelected: _isEraser,
-                onTap: () => setState(() => _isEraser = true),
-              ),
-              const Divider(height: 12),
-              _buildSizeSelector(),
-              const Divider(height: 12),
-              IconButton(
-                icon: const Icon(Icons.undo_rounded, color: AppColors.textDark),
-                tooltip: 'Hoàn tác',
-                onPressed: _undo,
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-                tooltip: 'Vẽ lại từ đầu',
-                onPressed: _clearCanvas,
-              ),
+              // Cột bên trái: Công cụ vẽ (Bút, Tẩy, Hoàn tác, Xóa) - Không text
+              _buildLeftToolBar(),
+
+              // Vùng trung tâm: Canvas vẽ tranh
+              Expanded(child: _buildDrawingArea()),
+
+              // Cột bên phải: Chọn kích thước nét vẽ dạng ô tròn trực quan
+              _buildRightSizeBar(),
             ],
           ),
         ),
 
-        // Center: Canvas Area
-        Expanded(child: _buildDrawingArea()),
-
-        // Right Column: Palette
-        Container(
-          width: 76,
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-          color: Colors.white,
-          child: ListView.builder(
-            itemCount: _palette.length,
-            physics: const BouncingScrollPhysics(),
-            itemBuilder: (context, index) {
-              final color = _palette[index];
-              final isSelected = !_isEraser && _selectedColor == color;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: _buildColorCircle(color, isSelected),
-              );
-            },
-          ),
-        ),
+        // Cạnh dưới màn hình: Bảng màu trải ngang
+        _buildBottomPaletteBar(),
       ],
     );
   }
 
+  // Cột công cụ bên trái (Landscape)
+  Widget _buildLeftToolBar() {
+    return Container(
+      width: 66,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Nút Cọ vẽ
+          _buildIconToolButton(
+            icon: Icons.brush_rounded,
+            tooltip: 'Cọ vẽ',
+            isSelected: !_isEraser,
+            onTap: () => setState(() => _isEraser = false),
+          ),
+          const SizedBox(height: 12),
+
+          // Nút Cục Tẩy (Icon cục tẩy thực tế)
+          _buildEraserToolButton(
+            tooltip: 'Cục tẩy',
+            isSelected: _isEraser,
+            onTap: () => setState(() => _isEraser = true),
+          ),
+          const SizedBox(height: 14),
+
+          Container(
+            width: 28,
+            height: 1.5,
+            color: Colors.grey.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: 14),
+
+          // Nút Hoàn tác (Undo)
+          _buildIconToolButton(
+            icon: Icons.undo_rounded,
+            tooltip: 'Hoàn tác',
+            isSelected: false,
+            color: AppColors.textDark,
+            onTap: _undo,
+          ),
+          const SizedBox(height: 12),
+
+          // Nút Xóa hết tranh vẽ (Clear)
+          _buildIconToolButton(
+            icon: Icons.delete_outline_rounded,
+            tooltip: 'Xóa vẽ lại',
+            isSelected: false,
+            color: Colors.redAccent,
+            onTap: _clearCanvas,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Cột chọn kích thước nét vẽ bên phải dạng ô tròn trực quan (Landscape)
+  Widget _buildRightSizeBar() {
+    final sizes = const [6.0, 12.0, 20.0, 30.0];
+
+    return Container(
+      width: 66,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          left: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: sizes.map((size) {
+          final isSelected = _strokeWidth == size;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            child: _buildActualSizeCircleButton(size, isSelected),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // Thanh bảng màu nằm ở cạnh dưới màn hình
+  Widget _buildBottomPaletteBar() {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: _palette.map((color) {
+              final isSelected = !_isEraser && _selectedColor == color;
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                child: _buildColorCircle(color, isSelected),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Màn hình dọc (Portrait)
   Widget _buildPortraitLayout() {
+    final sizes = const [6.0, 12.0, 20.0, 30.0];
+
     return Column(
       children: [
         Expanded(child: _buildDrawingArea()),
 
-        // Bottom Controls
+        // Thanh điều khiển dưới đáy
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -3),
-              ),
-            ],
+            border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.15))),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Colors Row
-              SizedBox(
-                height: 44,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: _palette.length,
-                  itemBuilder: (context, idx) {
-                    final color = _palette[idx];
-                    final isSelected = !_isEraser && _selectedColor == color;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: _buildColorCircle(color, isSelected),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
+              // Hàng màu
+              _buildBottomPaletteBar(),
 
-              // Tools Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildToolButton(
-                    icon: Icons.brush_rounded,
-                    label: 'Cọ',
-                    isSelected: !_isEraser,
-                    onTap: () => setState(() => _isEraser = false),
-                  ),
-                  _buildToolButton(
-                    icon: Icons.cleaning_services_rounded,
-                    label: 'Tẩy',
-                    isSelected: _isEraser,
-                    onTap: () => setState(() => _isEraser = true),
-                  ),
-                  _buildSizeSelector(),
-                  IconButton(
-                    icon: const Icon(Icons.undo_rounded, color: AppColors.textDark),
-                    onPressed: _undo,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-                    onPressed: _clearCanvas,
-                  ),
-                ],
+              // Hàng công cụ + Kích thước nét vẽ ô tròn
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildIconToolButton(
+                      icon: Icons.brush_rounded,
+                      tooltip: 'Cọ vẽ',
+                      isSelected: !_isEraser,
+                      onTap: () => setState(() => _isEraser = false),
+                    ),
+                    _buildEraserToolButton(
+                      tooltip: 'Cục tẩy',
+                      isSelected: _isEraser,
+                      onTap: () => setState(() => _isEraser = true),
+                    ),
+                    // Kích thước nét dạng ô tròn thực tế
+                    ...sizes.map((size) {
+                      final isSelected = _strokeWidth == size;
+                      return _buildActualSizeCircleButton(size, isSelected);
+                    }),
+                    _buildIconToolButton(
+                      icon: Icons.undo_rounded,
+                      tooltip: 'Hoàn tác',
+                      isSelected: false,
+                      color: AppColors.textDark,
+                      onTap: _undo,
+                    ),
+                    _buildIconToolButton(
+                      icon: Icons.delete_outline_rounded,
+                      tooltip: 'Xóa vẽ lại',
+                      isSelected: false,
+                      color: Colors.redAccent,
+                      onTap: _clearCanvas,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -607,79 +683,144 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     );
   }
 
-  Widget _buildToolButton({
+  // Nút công cụ dạng icon bo tròn không text
+  Widget _buildIconToolButton({
     required IconData icon,
-    required String label,
+    required String tooltip,
     required bool isSelected,
+    Color? color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: isSelected ? AppColors.primary : AppColors.textLight, size: 22),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? AppColors.primary : AppColors.textLight,
-              ),
+    final activeColor = color ?? AppColors.primary;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? activeColor : Colors.grey.withValues(alpha: 0.25),
+              width: isSelected ? 2.2 : 1.2,
             ),
-          ],
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Icon(
+              icon,
+              color: isSelected ? activeColor : (color ?? AppColors.textLight),
+              size: 24,
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSizeSelector() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildSizeDot(7.0, 'S'),
-        const SizedBox(width: 4),
-        _buildSizeDot(14.0, 'M'),
-        const SizedBox(width: 4),
-        _buildSizeDot(24.0, 'L'),
-      ],
+  // Nút Cục Tẩy riêng biệt với Icon cục tẩy trực quan không text
+  Widget _buildEraserToolButton({
+    required String tooltip,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    const activeColor = AppColors.primary;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? activeColor : Colors.grey.withValues(alpha: 0.25),
+              width: isSelected ? 2.2 : 1.2,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: EraserIcon(
+              size: 22,
+              color: isSelected ? activeColor : AppColors.textLight,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildSizeDot(double size, String label) {
-    final isSelected = _strokeWidth == size;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _strokeWidth = size);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : AppColors.textDark,
+  // Ô tròn thể hiện đúng kích thước thực tế của nét vẽ (không text)
+  Widget _buildActualSizeCircleButton(double size, bool isSelected) {
+    return Tooltip(
+      message: 'Nét ${size.toInt()}px',
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _strokeWidth = size);
+        },
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : Colors.grey.withValues(alpha: 0.06),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.25),
+              width: isSelected ? 2.5 : 1.2,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.22),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            // Ô tròn thể hiện đúng kích thước nét vẽ
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: _isEraser ? const Color(0xFF64748B) : _selectedColor,
+                shape: BoxShape.circle,
+              ),
+            ),
           ),
         ),
       ),
@@ -707,4 +848,77 @@ class _ColoringPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ColoringPainter oldDelegate) => true;
+}
+
+// Icon Cục Tẩy vẽ vector sắc nét hình khối thực tế
+class EraserIcon extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const EraserIcon({super.key, this.size = 24, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _EraserPainter(color: color),
+    );
+  }
+}
+
+class _EraserPainter extends CustomPainter {
+  final Color color;
+
+  _EraserPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0 * (size.width / 24.0)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fillPaint = Paint()
+      ..color = color.withValues(alpha: 0.25)
+      ..style = PaintingStyle.fill;
+
+    final scale = size.width / 24.0;
+    canvas.save();
+    canvas.scale(scale);
+
+    // Thân cục tẩy nghiêng 45 độ
+    final path = Path();
+    path.moveTo(15.5, 3.2);
+    path.lineTo(20.8, 8.5);
+    path.arcToPoint(const Offset(20.8, 11.5), radius: const Radius.circular(2.5));
+    path.lineTo(12.0, 20.3);
+    path.arcToPoint(const Offset(6.5, 20.3), radius: const Radius.circular(4.0));
+    path.lineTo(2.8, 16.6);
+    path.arcToPoint(const Offset(2.8, 11.2), radius: const Radius.circular(4.0));
+    path.lineTo(13.2, 0.8);
+    path.arcToPoint(const Offset(15.5, 3.2), radius: const Radius.circular(2.5));
+    path.close();
+
+    canvas.drawPath(path, fillPaint);
+    canvas.drawPath(path, strokePaint);
+
+    // Vạch đai bọc của cục tẩy
+    final bandPath = Path();
+    bandPath.moveTo(7.5, 14.5);
+    bandPath.lineTo(14.5, 7.5);
+    canvas.drawPath(bandPath, strokePaint);
+
+    // Đường mặt bàn tẩy
+    final baseLine = Path();
+    baseLine.moveTo(17.5, 21.0);
+    baseLine.lineTo(22.0, 21.0);
+    canvas.drawPath(baseLine, strokePaint);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _EraserPainter oldDelegate) => oldDelegate.color != color;
 }
