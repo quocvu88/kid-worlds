@@ -660,8 +660,10 @@ class AdminController {
         $body = json_decode(file_get_contents('php://input'), true);
         $keyword = trim($body['keyword'] ?? $_POST['keyword'] ?? $_GET['keyword'] ?? 'Hà Mã');
         $context = trim($body['context'] ?? $_POST['context'] ?? $_GET['context'] ?? '');
+        $aspectRatio = trim($body['aspect_ratio'] ?? $_POST['aspect_ratio'] ?? $_GET['aspect_ratio'] ?? '1:1');
+        $resolution = trim($body['resolution'] ?? $_POST['resolution'] ?? $_GET['resolution'] ?? '1024x1024');
 
-        $result = AiService::generateImagePrompts($keyword, $context);
+        $result = AiService::generateImagePrompts($keyword, $context, $aspectRatio, $resolution);
         echo json_encode([
             'status' => 'success',
             'data' => $result

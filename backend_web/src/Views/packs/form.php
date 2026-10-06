@@ -762,11 +762,12 @@
 
     // Modal chọn / upload tranh nét cho từng thẻ trong game Tô Màu
     function browseOutlineImage(cleanItemId, nameEn) {
-        const query = (nameEn ? nameEn + ' ' : '') + 'coloring page line art outline for kids';
         openImageBrowser({
             inputId: 'outline_input_' + cleanItemId,
             previewId: 'outline_preview_' + cleanItemId,
-            query: query,
+            query: nameEn || '',
+            defaultTab: 'ai_prompt',
+            preferredStyle: 'coloring_outline',
             callback: function(url) {
                 const wrap = document.getElementById('outline_preview_wrap_' + cleanItemId);
                 const placeholder = document.getElementById('outline_placeholder_' + cleanItemId);

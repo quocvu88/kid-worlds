@@ -383,86 +383,98 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
   // Cột công cụ bên trái (Landscape)
   Widget _buildLeftToolBar() {
     return Container(
-      width: 66,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      width: 62,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
           right: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
         ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Nút Cọ vẽ
-          _buildIconToolButton(
-            icon: Icons.brush_rounded,
-            tooltip: 'Cọ vẽ',
-            isSelected: !_isEraser,
-            onTap: () => setState(() => _isEraser = false),
-          ),
-          const SizedBox(height: 12),
+      child: Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Nút Cọ vẽ
+              _buildIconToolButton(
+                icon: Icons.brush_rounded,
+                tooltip: 'Cọ vẽ',
+                isSelected: !_isEraser,
+                onTap: () => setState(() => _isEraser = false),
+              ),
+              const SizedBox(height: 6),
 
-          // Nút Cục Tẩy (Icon cục tẩy thực tế)
-          _buildEraserToolButton(
-            tooltip: 'Cục tẩy',
-            isSelected: _isEraser,
-            onTap: () => setState(() => _isEraser = true),
-          ),
-          const SizedBox(height: 14),
+              // Nút Cục Tẩy (Icon cục tẩy thực tế)
+              _buildEraserToolButton(
+                tooltip: 'Cục tẩy',
+                isSelected: _isEraser,
+                onTap: () => setState(() => _isEraser = true),
+              ),
+              const SizedBox(height: 8),
 
-          Container(
-            width: 28,
-            height: 1.5,
-            color: Colors.grey.withValues(alpha: 0.2),
-          ),
-          const SizedBox(height: 14),
+              Container(
+                width: 24,
+                height: 1.5,
+                color: Colors.grey.withValues(alpha: 0.2),
+              ),
+              const SizedBox(height: 8),
 
-          // Nút Hoàn tác (Undo)
-          _buildIconToolButton(
-            icon: Icons.undo_rounded,
-            tooltip: 'Hoàn tác',
-            isSelected: false,
-            color: AppColors.textDark,
-            onTap: _undo,
-          ),
-          const SizedBox(height: 12),
+              // Nút Hoàn tác (Undo)
+              _buildIconToolButton(
+                icon: Icons.undo_rounded,
+                tooltip: 'Hoàn tác',
+                isSelected: false,
+                color: AppColors.textDark,
+                onTap: _undo,
+              ),
+              const SizedBox(height: 6),
 
-          // Nút Xóa hết tranh vẽ (Clear)
-          _buildIconToolButton(
-            icon: Icons.delete_outline_rounded,
-            tooltip: 'Xóa vẽ lại',
-            isSelected: false,
-            color: Colors.redAccent,
-            onTap: _clearCanvas,
+              // Nút Xóa hết tranh vẽ (Clear)
+              _buildIconToolButton(
+                icon: Icons.delete_outline_rounded,
+                tooltip: 'Xóa vẽ lại',
+                isSelected: false,
+                color: Colors.redAccent,
+                onTap: _clearCanvas,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   // Cột chọn kích thước nét vẽ bên phải dạng ô tròn trực quan (Landscape)
   Widget _buildRightSizeBar() {
-    final sizes = const [6.0, 12.0, 20.0, 30.0];
+    final sizes = const [6.0, 12.0, 20.0, 28.0];
 
     return Container(
-      width: 66,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      width: 62,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
           left: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
         ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: sizes.map((size) {
-          final isSelected = _strokeWidth == size;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: _buildActualSizeCircleButton(size, isSelected),
-          );
-        }).toList(),
+      child: Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: sizes.map((size) {
+              final isSelected = _strokeWidth == size;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: _buildActualSizeCircleButton(size, isSelected),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
@@ -699,17 +711,17 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
           HapticFeedback.selectionClick();
           onTap();
         },
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(19),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          width: 44,
-          height: 44,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
             shape: BoxShape.circle,
             border: Border.all(
               color: isSelected ? activeColor : Colors.grey.withValues(alpha: 0.25),
-              width: isSelected ? 2.2 : 1.2,
+              width: isSelected ? 2.0 : 1.2,
             ),
             boxShadow: isSelected
                 ? [
@@ -725,7 +737,7 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
             child: Icon(
               icon,
               color: isSelected ? activeColor : (color ?? AppColors.textLight),
-              size: 24,
+              size: 20,
             ),
           ),
         ),
@@ -747,17 +759,17 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
           HapticFeedback.selectionClick();
           onTap();
         },
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(19),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          width: 44,
-          height: 44,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: isSelected ? activeColor.withValues(alpha: 0.15) : Colors.transparent,
             shape: BoxShape.circle,
             border: Border.all(
               color: isSelected ? activeColor : Colors.grey.withValues(alpha: 0.25),
-              width: isSelected ? 2.2 : 1.2,
+              width: isSelected ? 2.0 : 1.2,
             ),
             boxShadow: isSelected
                 ? [
@@ -771,7 +783,7 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
           ),
           child: Center(
             child: EraserIcon(
-              size: 22,
+              size: 20,
               color: isSelected ? activeColor : AppColors.textLight,
             ),
           ),
@@ -782,6 +794,9 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
 
   // Ô tròn thể hiện đúng kích thước thực tế của nét vẽ (không text)
   Widget _buildActualSizeCircleButton(double size, bool isSelected) {
+    // Giới hạn đường kính hiển thị tối đa trong ô 38px
+    final dotDiameter = math.min(size, 24.0);
+
     return Tooltip(
       message: 'Nét ${size.toInt()}px',
       child: InkWell(
@@ -789,17 +804,17 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
           HapticFeedback.selectionClick();
           setState(() => _strokeWidth = size);
         },
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(19),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          width: 44,
-          height: 44,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: isSelected ? AppColors.primary.withValues(alpha: 0.12) : Colors.grey.withValues(alpha: 0.06),
             shape: BoxShape.circle,
             border: Border.all(
               color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.25),
-              width: isSelected ? 2.5 : 1.2,
+              width: isSelected ? 2.2 : 1.2,
             ),
             boxShadow: isSelected
                 ? [
@@ -814,8 +829,8 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
           child: Center(
             // Ô tròn thể hiện đúng kích thước nét vẽ
             child: Container(
-              width: size,
-              height: size,
+              width: dotDiameter,
+              height: dotDiameter,
               decoration: BoxDecoration(
                 color: _isEraser ? const Color(0xFF64748B) : _selectedColor,
                 shape: BoxShape.circle,

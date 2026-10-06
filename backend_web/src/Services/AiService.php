@@ -879,14 +879,17 @@ PROMPT;
     }
 
     /**
-     * Generate precision AI Image Prompts for Kids World Flashcards
-     * Supports: 3D Cute Pixar/Disney, Realistic National Geographic Photography, and 2D Vector Sticker
+     * Generate precision AI Image Prompts for Kids World Flashcards & Games
+     * Supports: 3D Cute Pixar/Disney, Realistic National Geographic Photography, and Coloring Book Page
      */
-    public static function generateImagePrompts(string $keyword, string $context = ''): array {
+    public static function generateImagePrompts(string $keyword, string $context = '', string $aspectRatio = '1:1', string $resolution = '1024x1024'): array {
         $cleanKw = trim($keyword);
         if (empty($cleanKw)) {
             $cleanKw = 'Hà Mã';
         }
+
+        $arParam = !empty($aspectRatio) ? $aspectRatio : '1:1';
+        $resParam = !empty($resolution) ? $resolution : '1024x1024';
 
         // Dictionary of common educational entities with English translations and traits
         $dict = [
@@ -937,38 +940,46 @@ PROMPT;
         }
 
         // Prompt 1: 3D Cute Pixar / Disney Style (Chuẩn Flashcard 3D)
-        $prompt3D = "Adorable cute {$enBaby}, {$features}, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high quality --ar 1:1 --v 6.0";
+        $prompt3D = "Adorable cute {$enBaby}, {$features}, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high resolution {$resParam} pixels --ar {$arParam} --v 6.0";
 
         // Prompt 2: Real Life Photography (Chuẩn Ảnh Thật Bách Khoa)
-        $promptReal = "Authentic high resolution wildlife photograph of a {$enSubject} {$setting}, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition --ar 1:1 --v 6.0";
+        $promptReal = "Authentic high resolution wildlife photograph of a {$enSubject} {$setting}, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition, high resolution {$resParam} pixels --ar {$arParam} --v 6.0";
 
-        // Prompt 3: 2D Flat Vector / Sticker (Chuẩn Mini-games & Sticker)
-        $promptVector = "Cute cartoon {$enSubject} sticker, kawaii flat vector illustration, bold clean outlines, cheerful friendly expression, vibrant pastel tones, isolated on white background, modern children educational graphic, SVG vector icon style, high detail --ar 1:1";
+        // Prompt 3: Coloring Page Line Art (Tranh Nét Chia Mảng Rõ Ràng Cho Bé Tô Màu)
+        $promptColoring = "Clean bold black line art, coloring book page for toddlers and kids, cute friendly {$enSubject}, segmented into distinct clear individual sections for easy coloring, thick closed outlines, well-defined large coloring areas, no shading, no gradients, no grey tones, pure solid white background, high contrast, minimalist cartoon illustration, printable coloring sheet, crisp vector lines, square format {$resParam} pixels --ar {$arParam} --v 6.0";
+
+        // Prompt 4: 2D Flat Vector / Sticker
+        $promptVector = "Cute cartoon {$enSubject} sticker, kawaii flat vector illustration, bold clean outlines, cheerful friendly expression, vibrant pastel tones, isolated on white background, modern children educational graphic, SVG vector icon style, high detail, {$resParam} pixels --ar {$arParam}";
 
         return [
             'keyword' => $cleanKw,
             'english_term' => $enSubject,
+            'aspect_ratio' => $arParam,
+            'resolution' => $resParam,
             'prompts' => [
                 'pixar_3d' => [
-                    'title' => 'Hoạt Họa 3D Cute (Pixar / Disney)',
-                    'badge' => 'Khuyên dùng cho Flashcard 3D',
+                    'title' => 'Hoạt Họa 3D Pixar Cute',
+                    'badge' => 'Flashcard 3D',
                     'style_code' => '3d_cute',
                     'prompt' => $prompt3D,
-                    'tips' => 'Phù hợp làm ảnh đại diện chính của Thẻ học (Flashcard 3D). Trẻ em rất thích vì nét mặt ngộ nghĩnh, màu sắc tươi sáng và nền phẳng dễ hiển thị.'
                 ],
                 'real_photo' => [
-                    'title' => 'Ảnh Chụp Thực Tế (National Geographic)',
-                    'badge' => 'Dành cho trường Ảnh Đời Thực (real_image_url)',
+                    'title' => 'Ảnh Chụp Thật (National Geographic)',
+                    'badge' => 'Ảnh Đời Thực',
                     'style_code' => 'real_photo',
                     'prompt' => $promptReal,
-                    'tips' => 'Phù hợp làm ảnh so sánh thực tế ngoài đời. Độ phân giải cao, bối cảnh thiên nhiên chân thực giúp bé nhận diện sự vật chính xác 100%.'
+                ],
+                'coloring_outline' => [
+                    'title' => 'Tranh Nét Chia Mảng Để Tô',
+                    'badge' => 'Game Tô Màu',
+                    'style_code' => 'coloring_outline',
+                    'prompt' => $promptColoring,
                 ],
                 'vector_2d' => [
                     'title' => 'Đồ Họa Phẳng 2D (Vector / Sticker)',
-                    'badge' => 'Dành cho Mini-games & Đố Vui',
+                    'badge' => 'Mini-games & Đố Vui',
                     'style_code' => 'vector_2d',
                     'prompt' => $promptVector,
-                    'tips' => 'Viền nét rõ ràng, phong cách sticker dễ thương, tối ưu cho giao diện game ghép chữ, kéo thả thẻ từ.'
                 ]
             ]
         ];

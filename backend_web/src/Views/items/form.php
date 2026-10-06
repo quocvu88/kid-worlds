@@ -265,7 +265,9 @@
         openImageBrowser({
             inputId: 'itemFormOutlineInput',
             previewId: 'itemFormOutlinePreview',
-            query: (q ? q + ' ' : '') + 'coloring page line art outline for kids',
+            query: q,
+            defaultTab: 'ai_prompt',
+            preferredStyle: 'coloring_outline',
             callback: function(url) {
                 const wrap = document.getElementById('itemFormOutlinePreviewWrap');
                 if (wrap) wrap.classList.remove('d-none');

@@ -3,36 +3,33 @@
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content" style="border-radius: var(--kw-radius); border: 1px solid var(--kw-border); box-shadow: 0 16px 40px rgba(0,0,0,0.12); overflow: hidden;">
             <!-- Modal Header -->
-            <div class="modal-header py-3 px-4" style="background: #ffffff; border-bottom: 1px solid var(--kw-border-light);">
+            <div class="modal-header py-2.5 px-4" style="background: #ffffff; border-bottom: 1px solid var(--kw-border-light);">
                 <div class="d-flex align-items-center gap-2.5">
-                    <span class="d-inline-flex align-items-center justify-content-center" style="width: 36px; height: 36px; background: var(--kw-primary-light); border: 1px solid var(--kw-primary-border); border-radius: var(--kw-radius-sm); color: var(--kw-primary);">
+                    <span class="d-inline-flex align-items-center justify-content-center" style="width: 34px; height: 34px; background: var(--kw-primary-light); border: 1px solid var(--kw-primary-border); border-radius: var(--kw-radius-sm); color: var(--kw-primary);">
                         <i class="bi bi-images fs-5"></i>
                     </span>
-                    <div>
-                        <h6 class="modal-title fw-bold text-dark mb-0" id="kwImageBrowserModalLabel">Kho Ảnh & Trợ Lý Tạo Prompt AI Cho Thẻ Học</h6>
-                        <small class="text-muted" style="font-size: 0.775rem;">Tải ảnh tự chọn từ máy, sinh prompt tạo ảnh chuẩn xác bằng Midjourney/DALL-E 3 hoặc tìm ảnh online</small>
-                    </div>
+                    <h6 class="modal-title fw-bold text-dark mb-0" id="kwImageBrowserModalLabel">Kho Ảnh & Trợ Lý Tạo Prompt AI</h6>
                 </div>
                 <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <!-- Tab Navigation Header -->
-            <div class="px-4 pt-3 pb-0 bg-white border-bottom" style="border-color: var(--kw-border-subtle) !important;">
-                <ul class="nav nav-tabs border-bottom-0 gap-2" id="imgModalNavTabs" role="tablist">
+            <div class="px-4 pt-2.5 pb-0 bg-white border-bottom" style="border-color: var(--kw-border-subtle) !important;">
+                <ul class="nav nav-tabs border-bottom-0 gap-2" id="imgModalNavTabs" role="list">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active d-flex align-items-center gap-2 py-2.5 px-3 fw-medium" id="tab-upload-btn" data-bs-toggle="tab" data-bs-target="#tab-media-upload" type="button" role="tab">
+                        <button class="nav-link active d-flex align-items-center gap-2 py-2 px-3 fw-medium" id="tab-upload-btn" data-bs-toggle="tab" data-bs-target="#tab-media-upload" type="button" role="tab">
                             <i class="bi bi-cloud-arrow-up text-primary fs-6"></i>
                             <span>1. Tải Lên & Kho Của Tôi</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link d-flex align-items-center gap-2 py-2.5 px-3 fw-medium" id="tab-prompt-btn" data-bs-toggle="tab" data-bs-target="#tab-ai-prompt" type="button" role="tab">
+                        <button class="nav-link d-flex align-items-center gap-2 py-2 px-3 fw-medium" id="tab-prompt-btn" data-bs-toggle="tab" data-bs-target="#tab-ai-prompt" type="button" role="tab">
                             <i class="bi bi-stars text-warning fs-6"></i>
-                            <span>2. Trợ Lý Tạo Prompt AI (3D & Ảnh Thật)</span>
+                            <span>2. Trợ Lý Tạo Prompt AI</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link d-flex align-items-center gap-2 py-2.5 px-3 fw-medium" id="tab-search-btn" data-bs-toggle="tab" data-bs-target="#tab-online-search" type="button" role="tab">
+                        <button class="nav-link d-flex align-items-center gap-2 py-2 px-3 fw-medium" id="tab-search-btn" data-bs-toggle="tab" data-bs-target="#tab-online-search" type="button" role="tab">
                             <i class="bi bi-globe2 text-info fs-6"></i>
                             <span>3. Tìm Kiếm Online & Dán URL</span>
                         </button>
@@ -41,7 +38,7 @@
             </div>
 
             <!-- Modal Body -->
-            <div class="modal-body p-4 bg-light" style="min-height: 480px;">
+            <div class="modal-body p-3.5 bg-light" style="min-height: 480px;">
                 <div class="tab-content" id="imgModalTabsContent">
                     
                     <!-- ==========================================
@@ -105,89 +102,115 @@
                     </div>
 
                     <!-- ==========================================
-                         TAB 2: TRỢ LÝ TẠO PROMPT AI (3D & ẢNH THẬT)
+                         TAB 2: TRỢ LÝ TẠO PROMPT AI
                          ========================================== -->
                     <div class="tab-pane fade" id="tab-ai-prompt" role="tabpanel">
-                        <div class="card card-custom p-4 mb-4 bg-white">
-                            <div class="row g-3 align-items-center mb-3">
-                                <div class="col-md-7">
-                                    <label class="form-label fw-semibold text-dark">
-                                        <i class="bi bi-lightbulb text-warning me-1"></i> Nhập Tên Đối Tượng Hoặc Chủ Đề Cần Tạo Ảnh:
+                        <div class="card card-custom p-3.5 mb-3 bg-white">
+                            <div class="row g-2.5 align-items-end">
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-semibold text-dark mb-1">
+                                        <i class="bi bi-lightbulb text-warning me-1"></i> Đối tượng / Chủ đề cần tạo:
                                     </label>
-                                    <div class="input-group">
-                                        <input type="text" id="aiPromptKeyword" class="form-control" placeholder="Ví dụ: Hà Mã, Sư tử, Voi, Xe cứu hỏa, T-Rex..." onkeydown="if(event.key==='Enter'){ generateAiImagePrompts(); }">
-                                        <button type="button" class="btn btn-kw-primary px-3" onclick="generateAiImagePrompts()">
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" id="aiPromptKeyword" class="form-control" placeholder="Ví dụ: Hà Mã, Sư tử, Xe buýt, T-Rex..." onkeydown="if(event.key==='Enter'){ generateAiImagePrompts(); }">
+                                        <button type="button" class="btn btn-kw-primary" onclick="generateAiImagePrompts()">
                                             <i class="bi bi-magic me-1"></i> Tạo Prompt AI
                                         </button>
                                     </div>
-                                    <small class="text-muted d-block mt-1">Hệ thống tự động biên dịch sang thuật ngữ chuyên gia và áp dụng tham số kích thước chuẩn <code>--ar 1:1</code> cho trẻ em.</small>
                                 </div>
-                                <div class="col-md-5">
-                                    <label class="form-label fw-semibold text-dark">Gợi ý nhanh chủ đề phổ biến:</label>
-                                    <div class="d-flex flex-wrap gap-1.5" id="aiPromptQuickTags">
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" onclick="setPromptKeyword('Hà Mã')">🦛 Hà Mã</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" onclick="setPromptKeyword('Sư tử')">🦁 Sư tử</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" onclick="setPromptKeyword('Cá heo')">🐬 Cá heo</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" onclick="setPromptKeyword('Máy bay')">✈️ Máy bay</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" onclick="setPromptKeyword('Khủng long T-Rex')">🦖 T-Rex</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" onclick="setPromptKeyword('Quả chuối')">🍌 Quả chuối</button>
+
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-semibold text-dark mb-1">
+                                        <i class="bi bi-aspect-ratio text-info me-1"></i> Kích Thước & Tỉ Lệ:
+                                    </label>
+                                    <select id="aiPromptSizeSelect" class="form-select form-select-sm" onchange="generateAiImagePrompts()">
+                                        <option value="1:1|1024x1024" selected>Vuông 1:1 (1024x1024) - Chuẩn App</option>
+                                        <option value="4:3|1024x768">Ngang 4:3 (1024x768)</option>
+                                        <option value="3:4|768x1024">Dọc 3:4 (768x1024)</option>
+                                        <option value="16:9|1280x720">Rộng 16:9 (1280x720)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="d-flex flex-wrap gap-1" id="aiPromptQuickTags">
+                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Hà Mã')">🦛 Hà Mã</button>
+                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Sư tử')">🦁 Sư tử</button>
+                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Cá heo')">🐬 Cá heo</button>
+                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Máy bay')">✈️ Máy bay</button>
+                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('T-Rex')">🦖 T-Rex</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Prompt Result Cards Container -->
+                        <!-- Prompt Result Cards Container: 3 Cột Cân Đối -->
                         <div id="aiPromptResults">
                             <div class="row g-3">
                                 <!-- Option 1: 3D Pixar Animation -->
-                                <div class="col-lg-6">
-                                    <div class="card card-custom h-100 p-3.5 bg-white d-flex flex-column">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <div>
-                                                <span class="badge-kw-blue mb-1 d-inline-block">Khuyên Dùng Cho Flashcard 3D</span>
-                                                <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
-                                                    🎨 <span>Phong Cách Hoạt Họa 3D Pixar Cute</span>
+                                <div class="col-lg-4">
+                                    <div class="card card-custom h-100 p-3 bg-white d-flex flex-column">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.7rem;">Flashcard 3D</span>
+                                                <h6 class="fw-bold text-dark mb-0" style="font-size: 0.85rem;">
+                                                    🎨 Hoạt Họa 3D Pixar Cute
                                                 </h6>
                                             </div>
-                                            <button type="button" class="btn btn-kw-primary btn-sm py-1 px-2.5" onclick="copyPromptText('promptPixarText', this)">
+                                            <button type="button" class="btn btn-kw-primary btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="copyPromptText('promptPixarText', this)">
                                                 <i class="bi bi-copy me-1"></i> Sao Chép
                                             </button>
                                         </div>
-                                        <p class="text-muted small mb-2" style="font-size: 0.775rem;">
-                                            Tạo hình ngộ nghĩnh, mắt to long lanh, viền bo mềm mại, nền phẳng pastel dịu mắt giúp bé hào hứng tương tác.
-                                        </p>
-                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-3" style="font-size: 0.775rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word;" id="promptPixarText">Adorable cute cute baby hippopotamus, chubby body, friendly smiling expression, big sparkling eyes, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high quality --ar 1:1 --v 6.0</div>
-                                        <div class="d-flex align-items-center justify-content-between pt-2 border-top">
-                                            <span class="text-muted small" style="font-size: 0.725rem;">Khuyên dùng: Midjourney, DALL-E 3</span>
-                                            <a href="https://www.bing.com/images/create" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;">
-                                                <i class="bi bi-box-arrow-up-right me-1"></i> Mở Bing Creator (Miễn phí)
+                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptPixarText">Adorable cute baby hippopotamus, chubby body, friendly smiling expression, big sparkling eyes, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high resolution 1024x1024 pixels --ar 1:1 --v 6.0</div>
+                                        <div class="d-flex align-items-center justify-content-end pt-1.5 border-top">
+                                            <a href="https://www.bing.com/images/create" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.725rem;">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i> Mở Bing Creator
                                             </a>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Option 2: Real Life Photography -->
-                                <div class="col-lg-6">
-                                    <div class="card card-custom h-100 p-3.5 bg-white d-flex flex-column">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <div>
-                                                <span class="badge-kw-slate mb-1 d-inline-block">Dành Cho Ảnh Đời Thực (real_image_url)</span>
-                                                <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
-                                                    📸 <span>Phong Cách Ảnh Chụp Thật (National Geographic)</span>
+                                <div class="col-lg-4">
+                                    <div class="card card-custom h-100 p-3 bg-white d-flex flex-column">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size: 0.7rem;">Ảnh Đời Thực</span>
+                                                <h6 class="fw-bold text-dark mb-0" style="font-size: 0.85rem;">
+                                                    📸 Ảnh Chụp Thật (NatGeo)
                                                 </h6>
                                             </div>
-                                            <button type="button" class="btn btn-kw-primary btn-sm py-1 px-2.5" onclick="copyPromptText('promptRealText', this)">
+                                            <button type="button" class="btn btn-kw-primary btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="copyPromptText('promptRealText', this)">
                                                 <i class="bi bi-copy me-1"></i> Sao Chép
                                             </button>
                                         </div>
-                                        <p class="text-muted small mb-2" style="font-size: 0.775rem;">
-                                            Chụp sắc nét cấu trúc da và mắt tự nhiên trong bối cảnh đời thực, giúp bé đối chiếu và nhận thức chính xác thế giới xung quanh.
-                                        </p>
-                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-3" style="font-size: 0.775rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word;" id="promptRealText">Authentic high resolution wildlife photograph of a hippopotamus resting peacefully near a clean tropical African riverbank, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition --ar 1:1 --v 6.0</div>
-                                        <div class="d-flex align-items-center justify-content-between pt-2 border-top">
-                                            <span class="text-muted small" style="font-size: 0.725rem;">Khuyên dùng: Midjourney, ChatGPT</span>
-                                            <a href="https://chatgpt.com" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;">
+                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptRealText">Authentic high resolution wildlife photograph of a hippopotamus resting peacefully near a clean tropical African riverbank, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition, high resolution 1024x1024 pixels --ar 1:1 --v 6.0</div>
+                                        <div class="d-flex align-items-center justify-content-end pt-1.5 border-top">
+                                            <a href="https://chatgpt.com" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.725rem;">
                                                 <i class="bi bi-box-arrow-up-right me-1"></i> Mở ChatGPT (DALL-E 3)
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Option 3: Tranh Nét Chia Mảng Để Tô (Coloring Page Line Art) -->
+                                <div class="col-lg-4">
+                                    <div class="card card-custom h-100 p-3 bg-white d-flex flex-column" style="border-color: #FED7AA !important; background: #FFFDF9 !important;">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size: 0.7rem;">Game Tô Màu</span>
+                                                <h6 class="fw-bold text-dark mb-0" style="font-size: 0.85rem;">
+                                                    🖍️ Tranh Nét Chia Mảng Để Tô
+                                                </h6>
+                                            </div>
+                                            <button type="button" class="btn btn-kw-primary btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="copyPromptText('promptColoringText', this)">
+                                                <i class="bi bi-copy me-1"></i> Sao Chép
+                                            </button>
+                                        </div>
+                                        <div class="p-2.5 rounded bg-white border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptColoringText">Clean bold black line art, coloring book page for toddlers and kids, cute friendly hippopotamus, segmented into distinct clear individual sections for easy coloring, thick closed outlines, well-defined large coloring areas, no shading, no gradients, no grey tones, pure solid white background, high contrast, minimalist cartoon illustration, printable coloring sheet, crisp vector lines, square format 1024x1024 pixels --ar 1:1 --v 6.0</div>
+                                        <div class="d-flex align-items-center justify-content-between pt-1.5 border-top">
+                                            <small class="text-success fw-medium" style="font-size: 0.7rem;">Viền khép kín, chia mảng</small>
+                                            <a href="https://www.bing.com/images/create" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.725rem;">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i> Mở Bing Creator
                                             </a>
                                         </div>
                                     </div>
@@ -196,16 +219,12 @@
                         </div>
 
                         <!-- Dropzone right under prompt for fast workflow -->
-                        <div class="mt-4 p-3 bg-white rounded border d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-color: #bae6fd !important;">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-arrow-right-circle text-primary fs-4"></i>
-                                <div>
-                                    <span class="fw-semibold text-dark d-block" style="font-size: 0.875rem;">Đã tạo xong ảnh từ AI?</span>
-                                    <small class="text-muted">Kéo thả file ảnh vừa tải về từ ChatGPT/Midjourney vào đây để lưu lên máy chủ và áp dụng ngay:</small>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-kw-subtle btn-sm" onclick="document.getElementById('tab-upload-btn').click(); document.getElementById('imgFileInput').click();">
-                                <i class="bi bi-cloud-arrow-up me-1"></i> Chuyển Sang Kéo Thả / Upload Ảnh Ngay
+                        <div class="mt-3 p-2.5 bg-white rounded border d-flex align-items-center justify-content-between flex-wrap gap-2" style="border-color: #bae6fd !important;">
+                            <span class="fw-semibold text-dark small">
+                                <i class="bi bi-cloud-arrow-up text-primary me-1"></i> Đã tạo xong ảnh từ AI?
+                            </span>
+                            <button type="button" class="btn btn-kw-subtle btn-sm py-1 px-3" onclick="document.getElementById('tab-upload-btn').click(); document.getElementById('imgFileInput').click();">
+                                Tải Lên Máy Chủ Ngay
                             </button>
                         </div>
                     </div>
@@ -263,11 +282,8 @@
             </div>
 
             <!-- Modal Footer -->
-            <div class="modal-footer py-2.5 px-4" style="background: #ffffff; border-top: 1px solid var(--kw-border-light);">
-                <small class="text-muted me-auto" style="font-size: 0.75rem;">
-                    <i class="bi bi-info-circle me-1 text-primary"></i> Nhấp vào ảnh bất kỳ trong kho để chọn và gán vào thẻ ngay lập tức.
-                </small>
-                <button type="button" class="btn btn-kw-outline btn-sm" data-bs-dismiss="modal">Đóng</button>
+            <div class="modal-footer py-2 px-4 justify-content-end" style="background: #ffffff; border-top: 1px solid var(--kw-border-light);">
+                <button type="button" class="btn btn-kw-outline btn-sm px-3" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>
@@ -335,27 +351,28 @@
         const modalEl = document.getElementById('kwImageBrowserModal');
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
-        const initialQuery = (options.query || '').trim();
-        document.getElementById('imgModalSearchInput').value = initialQuery;
-        document.getElementById('aiPromptKeyword').value = initialQuery || 'Hà Mã';
+        const rawQuery = (options.query || '').trim();
+        const cleanQuery = rawQuery.replace(/coloring\s+page|line\s+art|outline\s+for\s+kids/gi, '').trim();
+        document.getElementById('imgModalSearchInput').value = cleanQuery || rawQuery;
+        document.getElementById('aiPromptKeyword').value = cleanQuery || rawQuery || 'Hà Mã';
         document.getElementById('imgModalDirectUrl').value = '';
 
         // Switch tab based on preference
-        if (options.defaultTab === 'ai_prompt') {
+        if (options.defaultTab === 'ai_prompt' || options.preferredStyle === 'coloring_outline') {
             const promptTabBtn = document.getElementById('tab-prompt-btn');
             if (promptTabBtn) bootstrap.Tab.getOrCreateInstance(promptTabBtn).show();
             generateAiImagePrompts();
         } else if (options.defaultTab === 'search') {
             const searchTabBtn = document.getElementById('tab-search-btn');
             if (searchTabBtn) bootstrap.Tab.getOrCreateInstance(searchTabBtn).show();
-            renderModalSuggestions(initialQuery);
-            if (initialQuery) searchModalImages();
+            renderModalSuggestions(cleanQuery || rawQuery);
+            if (cleanQuery || rawQuery) searchModalImages();
         } else {
             // Default to Upload tab
             const uploadTabBtn = document.getElementById('tab-upload-btn');
             if (uploadTabBtn) bootstrap.Tab.getOrCreateInstance(uploadTabBtn).show();
             fetchUploadedImages();
-            if (initialQuery) generateAiImagePrompts();
+            if (cleanQuery || rawQuery) generateAiImagePrompts();
         }
 
         modal.show();
@@ -503,22 +520,35 @@
     }
 
     function generateAiImagePrompts() {
-        const kw = document.getElementById('aiPromptKeyword').value.trim() || 'Hà Mã';
+        const rawKw = document.getElementById('aiPromptKeyword').value.trim() || 'Hà Mã';
+        const cleanKw = rawKw.replace(/coloring\s+page|line\s+art|outline\s+for\s+kids/gi, '').trim() || rawKw;
+
+        const sizeVal = document.getElementById('aiPromptSizeSelect')?.value || '1:1|1024x1024';
+        const parts = sizeVal.split('|');
+        const ar = parts[0] || '1:1';
+        const res = parts[1] || '1024x1024';
 
         fetch('/api/ai/image-prompt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keyword: kw })
+            body: JSON.stringify({ 
+                keyword: cleanKw,
+                aspect_ratio: ar,
+                resolution: res
+            })
         })
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success' && data.data && data.data.prompts) {
                 const prompts = data.data.prompts;
-                if (prompts.pixar_3d) {
+                if (prompts.pixar_3d && document.getElementById('promptPixarText')) {
                     document.getElementById('promptPixarText').innerText = prompts.pixar_3d.prompt;
                 }
-                if (prompts.real_photo) {
+                if (prompts.real_photo && document.getElementById('promptRealText')) {
                     document.getElementById('promptRealText').innerText = prompts.real_photo.prompt;
+                }
+                if (prompts.coloring_outline && document.getElementById('promptColoringText')) {
+                    document.getElementById('promptColoringText').innerText = prompts.coloring_outline.prompt;
                 }
             }
         })
