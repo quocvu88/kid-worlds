@@ -74,6 +74,7 @@ class AdminController {
         $this->render('packs/form', [
             'title' => 'Thêm Gói Chủ Đề Mới',
             'pack' => null,
+            'items' => [],
             'isEdit' => false
         ]);
     }
@@ -86,6 +87,16 @@ class AdminController {
 
         $uploadedThumbnail = $this->handleFileUpload('thumbnail_file', 'images');
         $thumbnailUrl = $uploadedThumbnail ?: trim($_POST['thumbnail_url'] ?? '');
+
+        $rawGames = $_POST['selected_games'] ?? ['coloring', 'memory_match'];
+        if (!is_array($rawGames) || empty($rawGames)) {
+            $rawGames = ['coloring', 'memory_match'];
+        }
+        $rawGames = array_slice($rawGames, 0, 3);
+        $selectedGamesJson = json_encode(array_values($rawGames), JSON_UNESCAPED_UNICODE);
+
+        $gameConfig = $_POST['game_config'] ?? [];
+        $gameConfigJson = is_array($gameConfig) ? json_encode($gameConfig, JSON_UNESCAPED_UNICODE) : '{}';
 
         $data = [
             'id' => $id,
@@ -102,7 +113,9 @@ class AdminController {
             'description_en' => trim($_POST['description_en'] ?? ''),
             'version' => 1,
             'size_mb' => (float)($_POST['size_mb'] ?? 1.5),
-            'is_active' => isset($_POST['is_active']) ? 1 : 0
+            'is_active' => isset($_POST['is_active']) ? 1 : 0,
+            'selected_games_json' => $selectedGamesJson,
+            'game_config_json' => $gameConfigJson
         ];
 
         TopicPack::create($data);
@@ -115,9 +128,12 @@ class AdminController {
             $this->redirect('/packs');
         }
 
+        $items = TopicItem::byPack($id);
+
         $this->render('packs/form', [
             'title' => 'Chỉnh Sửa Gói: ' . $pack['title_vi'],
             'pack' => $pack,
+            'items' => $items,
             'isEdit' => true
         ]);
     }
@@ -130,6 +146,16 @@ class AdminController {
 
         $uploadedThumbnail = $this->handleFileUpload('thumbnail_file', 'images');
         $thumbnailUrl = $uploadedThumbnail ?: (trim($_POST['thumbnail_url'] ?? '') ?: $pack['thumbnail_url']);
+
+        $rawGames = $_POST['selected_games'] ?? ['coloring', 'memory_match'];
+        if (!is_array($rawGames) || empty($rawGames)) {
+            $rawGames = ['coloring', 'memory_match'];
+        }
+        $rawGames = array_slice($rawGames, 0, 3);
+        $selectedGamesJson = json_encode(array_values($rawGames), JSON_UNESCAPED_UNICODE);
+
+        $gameConfig = $_POST['game_config'] ?? [];
+        $gameConfigJson = is_array($gameConfig) ? json_encode($gameConfig, JSON_UNESCAPED_UNICODE) : '{}';
 
         $data = [
             'title_vi' => trim($_POST['title_vi'] ?? ''),
@@ -144,10 +170,26 @@ class AdminController {
             'description_vi' => trim($_POST['description_vi'] ?? ''),
             'description_en' => trim($_POST['description_en'] ?? ''),
             'size_mb' => (float)($_POST['size_mb'] ?? $pack['size_mb']),
-            'is_active' => isset($_POST['is_active']) ? 1 : 0
+            'is_active' => isset($_POST['is_active']) ? 1 : 0,
+            'selected_games_json' => $selectedGamesJson,
+            'game_config_json' => $gameConfigJson
         ];
 
         TopicPack::update($id, $data);
+
+        // Cập nhật tranh nét vẽ tô màu cho từng thẻ trong gói nếu có submit từ Tab 3
+        if (isset($_POST['coloring_outline']) && is_array($_POST['coloring_outline'])) {
+            foreach ($_POST['coloring_outline'] as $itemId => $outlineUrl) {
+                $cleanUrl = trim($outlineUrl);
+                $uploadFileKey = 'coloring_outline_file_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $itemId);
+                $uploadedOutline = $this->handleFileUpload($uploadFileKey, 'images');
+                if ($uploadedOutline) {
+                    $cleanUrl = $uploadedOutline;
+                }
+                TopicItem::updateColoringOutline($itemId, $cleanUrl);
+            }
+        }
+
         $this->redirect('/packs?updated=1');
     }
 
@@ -205,6 +247,9 @@ class AdminController {
         $uploadedAudioEn = $this->handleFileUpload('audio_en_file', 'audio');
         $pronounceEn = $uploadedAudioEn ?: trim($_POST['pronounce_en_url'] ?? '');
 
+        $uploadedOutline = $this->handleFileUpload('coloring_outline_file', 'images');
+        $coloringOutline = $uploadedOutline ?: trim($_POST['coloring_outline_url'] ?? '');
+
         $data = [
             'id' => $id,
             'pack_id' => $packId,
@@ -226,6 +271,7 @@ class AdminController {
             'prompt_question_vi' => trim($_POST['prompt_question_vi'] ?? ''),
             'prompt_question_en' => trim($_POST['prompt_question_en'] ?? ''),
             'action_hint_vi' => trim($_POST['action_hint_vi'] ?? ''),
+            'coloring_outline_url' => $coloringOutline,
             'sort_order' => (int)($_POST['sort_order'] ?? 0)
         ];
 
@@ -268,6 +314,9 @@ class AdminController {
         $uploadedAudioEn = $this->handleFileUpload('audio_en_file', 'audio');
         $pronounceEn = $uploadedAudioEn ?: (trim($_POST['pronounce_en_url'] ?? '') ?: $item['pronounce_en_url']);
 
+        $uploadedOutline = $this->handleFileUpload('coloring_outline_file', 'images');
+        $coloringOutline = $uploadedOutline ?: (trim($_POST['coloring_outline_url'] ?? '') ?: ($item['coloring_outline_url'] ?? ''));
+
         $data = [
             'name_vi' => trim($_POST['name_vi'] ?? ''),
             'name_en' => trim($_POST['name_en'] ?? ''),
@@ -287,6 +336,7 @@ class AdminController {
             'prompt_question_vi' => trim($_POST['prompt_question_vi'] ?? '') ?: ($item['prompt_question_vi'] ?? ''),
             'prompt_question_en' => trim($_POST['prompt_question_en'] ?? '') ?: ($item['prompt_question_en'] ?? ''),
             'action_hint_vi' => trim($_POST['action_hint_vi'] ?? '') ?: ($item['action_hint_vi'] ?? ''),
+            'coloring_outline_url' => $coloringOutline,
             'sort_order' => (int)($_POST['sort_order'] ?? $item['sort_order']),
             'pack_id' => $item['pack_id']
         ];

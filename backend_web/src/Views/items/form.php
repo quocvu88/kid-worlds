@@ -142,6 +142,32 @@
                         </div>
                     </div>
 
+                    <!-- Coloring Outline Section -->
+                    <div class="col-12 p-3 bg-light rounded-3 border" style="border-color: var(--kw-border) !important;">
+                        <label class="form-label fw-semibold text-dark mb-1">
+                            <i class="bi bi-brush text-warning me-1"></i> Tranh Nét Tô Màu Cho Game (Line Art / Coloring Outline)
+                        </label>
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-5">
+                                <label class="small text-muted mb-1" style="font-size: 0.75rem;">Tải tranh vẽ nét từ máy (PNG/JPG đen trắng):</label>
+                                <input type="file" name="coloring_outline_file" class="form-control" accept="image/*">
+                            </div>
+                            <div class="col-md-7">
+                                <label class="small text-muted mb-1" style="font-size: 0.75rem;">Hoặc URL ảnh / Kho ảnh nét AI:</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" id="itemFormOutlineInput" name="coloring_outline_url" class="form-control text-truncate" value="<?= htmlspecialchars($item['coloring_outline_url'] ?? '') ?>" placeholder="https://... hoặc /uploads/images/...">
+                                    <button type="button" class="btn btn-kw-subtle" onclick="browseColoringOutline()">
+                                        <i class="bi bi-palette me-1"></i> Kho Tranh Nét
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2.5 d-flex align-items-center gap-2 <?= empty($item['coloring_outline_url']) ? 'd-none' : '' ?>" id="itemFormOutlinePreviewWrap">
+                            <small class="text-muted" style="font-size: 0.75rem;">Tranh nét hiện tại:</small>
+                            <img id="itemFormOutlinePreview" src="<?= htmlspecialchars($item['coloring_outline_url'] ?? '') ?>" style="height: 52px; border-radius: var(--kw-radius-sm); border: 1px solid var(--kw-border); background: white; padding: 2px;" alt="Coloring Outline">
+                        </div>
+                    </div>
+
                     <!-- Parent Guide Coaching Section -->
                     <div class="col-12 p-3 rounded-3 border" style="background: #FFFBEB; border-color: #FDE68A !important;">
                         <h6 class="fw-bold text-dark mb-3">
@@ -228,6 +254,20 @@
             preferredStyle: 'real_photo',
             callback: function(url) {
                 const wrap = document.getElementById('itemFormRealImgPreviewWrap');
+                if (wrap) wrap.classList.remove('d-none');
+            }
+        });
+    }
+
+    function browseColoringOutline() {
+        const q = (document.querySelector('input[name="name_en"]')?.value || '').trim() 
+               || (document.querySelector('input[name="name_vi"]')?.value || '').trim();
+        openImageBrowser({
+            inputId: 'itemFormOutlineInput',
+            previewId: 'itemFormOutlinePreview',
+            query: (q ? q + ' ' : '') + 'coloring page line art outline for kids',
+            callback: function(url) {
+                const wrap = document.getElementById('itemFormOutlinePreviewWrap');
                 if (wrap) wrap.classList.remove('d-none');
             }
         });

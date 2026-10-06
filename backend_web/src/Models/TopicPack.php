@@ -41,9 +41,10 @@ class TopicPack {
             INSERT INTO topic_packs (
                 id, title_vi, title_en, category, target_age_min, target_age_max,
                 target_gender, thumbnail_url, background_url, theme_color,
-                description_vi, description_en, version, size_mb, is_active, updated_at
+                description_vi, description_en, version, size_mb, is_active,
+                selected_games_json, game_config_json, updated_at
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
             )
         ");
 
@@ -62,7 +63,9 @@ class TopicPack {
             $data['description_en'] ?? '',
             (int)($data['version'] ?? 1),
             (float)($data['size_mb'] ?? 1.5),
-            isset($data['is_active']) ? (int)$data['is_active'] : 1
+            isset($data['is_active']) ? (int)$data['is_active'] : 1,
+            $data['selected_games_json'] ?? '["coloring","memory_match"]',
+            $data['game_config_json'] ?? '{}'
         ]);
     }
 
@@ -84,6 +87,8 @@ class TopicPack {
                 version = version + 1,
                 size_mb = ?,
                 is_active = ?,
+                selected_games_json = ?,
+                game_config_json = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ");
@@ -102,6 +107,8 @@ class TopicPack {
             $data['description_en'] ?? '',
             (float)($data['size_mb'] ?? 1.5),
             isset($data['is_active']) ? (int)$data['is_active'] : 1,
+            $data['selected_games_json'] ?? '["coloring","memory_match"]',
+            $data['game_config_json'] ?? '{}',
             $id
         ]);
     }

@@ -86,6 +86,8 @@ class ApiController {
                 'version' => (int)$pack['version'],
                 'size_mb' => (float)$pack['size_mb'],
                 'item_count' => (int)$pack['item_count'],
+                'selected_games' => json_decode($pack['selected_games_json'] ?? '["coloring","memory_match"]', true) ?: ['coloring', 'memory_match'],
+                'game_config' => json_decode($pack['game_config_json'] ?? '{}', true) ?: (object)[],
                 'updated_at' => $pack['updated_at'],
                 'download_url' => $this->getBaseUrl() . '/api/packs/' . urlencode($pack['id']) . '/download',
             ];
@@ -133,13 +135,16 @@ class ApiController {
                 'fun_fact_en' => $item['fun_fact_en'] ?? '',
                 'prompt_question_vi' => $item['prompt_question_vi'] ?? '',
                 'prompt_question_en' => $item['prompt_question_en'] ?? '',
-                'action_hint_vi' => $item['action_hint_vi'] ?? ''
+                'action_hint_vi' => $item['action_hint_vi'] ?? '',
+                'coloring_outline_url' => $this->resolveUrl($item['coloring_outline_url'] ?? '')
             ];
         }, $items);
 
         $pack['thumbnail_url'] = $this->resolveUrl($pack['thumbnail_url']);
         $pack['background_url'] = $this->resolveUrl($pack['background_url'] ?? '');
         $pack['theme_color'] = $pack['theme_color'] ?? '#FF6584';
+        $pack['selected_games'] = json_decode($pack['selected_games_json'] ?? '["coloring","memory_match"]', true) ?: ['coloring', 'memory_match'];
+        $pack['game_config'] = json_decode($pack['game_config_json'] ?? '{}', true) ?: (object)[];
         $pack['items'] = $formattedItems;
         $pack['item_count'] = count($formattedItems);
 
@@ -179,7 +184,8 @@ class ApiController {
                 'fun_fact_en' => $item['fun_fact_en'] ?? '',
                 'prompt_question_vi' => $item['prompt_question_vi'] ?? '',
                 'prompt_question_en' => $item['prompt_question_en'] ?? '',
-                'action_hint_vi' => $item['action_hint_vi'] ?? ''
+                'action_hint_vi' => $item['action_hint_vi'] ?? '',
+                'coloring_outline_url' => $this->resolveUrl($item['coloring_outline_url'] ?? '')
             ];
         }, $items);
 
@@ -197,6 +203,8 @@ class ApiController {
                 'background_path' => $this->resolveUrl($pack['background_url'] ?? ''),
                 'theme_color' => $pack['theme_color'] ?? '#FF6584',
                 'version' => (int)$pack['version'],
+                'selected_games_json' => $pack['selected_games_json'] ?? '["coloring","memory_match"]',
+                'game_config_json' => $pack['game_config_json'] ?? '{}',
                 'is_downloaded' => 1
             ],
             'items' => $formattedItems,

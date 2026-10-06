@@ -33,9 +33,9 @@ class TopicItem {
                 pronounce_vi_url, pronounce_en_url, images_json, youtube_video_id,
                 map_x, map_y, phonics_en, real_image_url, sfx_sound,
                 fun_fact_vi, fun_fact_en, prompt_question_vi, prompt_question_en, action_hint_vi,
-                sort_order
+                coloring_outline_url, sort_order
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         ");
 
@@ -64,6 +64,7 @@ class TopicItem {
             $data['prompt_question_vi'] ?? '',
             $data['prompt_question_en'] ?? '',
             $data['action_hint_vi'] ?? '',
+            $data['coloring_outline_url'] ?? '',
             (int)($data['sort_order'] ?? 0)
         ]);
 
@@ -95,6 +96,7 @@ class TopicItem {
                 prompt_question_vi = ?,
                 prompt_question_en = ?,
                 action_hint_vi = ?,
+                coloring_outline_url = ?,
                 sort_order = ?
             WHERE id = ?
         ");
@@ -122,6 +124,7 @@ class TopicItem {
             $data['prompt_question_vi'] ?? '',
             $data['prompt_question_en'] ?? '',
             $data['action_hint_vi'] ?? '',
+            $data['coloring_outline_url'] ?? '',
             (int)($data['sort_order'] ?? 0),
             $id
         ]);
@@ -130,6 +133,12 @@ class TopicItem {
             self::touchPack($data['pack_id']);
         }
         return $success;
+    }
+
+    public static function updateColoringOutline(string $id, string $url): bool {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE topic_items SET coloring_outline_url = ? WHERE id = ?");
+        return $stmt->execute([$url, $id]);
     }
 
     public static function delete(string $id): bool {

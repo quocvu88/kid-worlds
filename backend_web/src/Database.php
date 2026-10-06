@@ -35,7 +35,12 @@ class Database {
 
     private static function ensureColumnsExist(): void {
         $db = self::$instance;
-        $packCols = ['background_url TEXT', 'theme_color TEXT'];
+        $packCols = [
+            'background_url TEXT',
+            'theme_color TEXT',
+            'selected_games_json TEXT DEFAULT \'["coloring","memory_match"]\'',
+            'game_config_json TEXT DEFAULT \'{}\''
+        ];
         foreach ($packCols as $col) {
             try {
                 $db->exec("ALTER TABLE topic_packs ADD COLUMN $col;");
@@ -50,7 +55,8 @@ class Database {
             'fun_fact_en TEXT',
             'prompt_question_vi TEXT',
             'prompt_question_en TEXT',
-            'action_hint_vi TEXT'
+            'action_hint_vi TEXT',
+            'coloring_outline_url TEXT'
         ];
         foreach ($itemCols as $col) {
             try {
@@ -80,6 +86,8 @@ class Database {
                 version INTEGER DEFAULT 1,
                 size_mb REAL DEFAULT 1.5,
                 is_active INTEGER DEFAULT 1,
+                selected_games_json TEXT DEFAULT '[\"coloring\",\"memory_match\"]',
+                game_config_json TEXT DEFAULT '{}',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
@@ -108,6 +116,7 @@ class Database {
                 prompt_question_vi TEXT,
                 prompt_question_en TEXT,
                 action_hint_vi TEXT,
+                coloring_outline_url TEXT,
                 sort_order INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (pack_id) REFERENCES topic_packs(id) ON DELETE CASCADE
