@@ -33,17 +33,28 @@ class ContentServerConfigService extends ChangeNotifier {
   ServerInfo? _lastServerInfo;
   bool _isChecking = false;
 
+  late final Future<void> _ready;
+
   ContentServerConfigService._init() {
-    _loadFromPrefs();
+    _ready = _loadFromPrefs();
   }
+
+  /// Hoàn tất khi URL máy chủ đã được đọc từ bộ nhớ. Luôn `await` trước khi gọi mạng
+  /// để tránh dùng nhầm URL mặc định ở lần gọi đầu tiên.
+  Future<void> get ready => _ready;
 
   String get currentServerUrl => _currentServerUrl;
   ServerInfo? get lastServerInfo => _lastServerInfo;
   bool get isChecking => _isChecking;
 
   Future<void> _loadFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString(_keyServerUrl);
+    String? saved;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      saved = prefs.getString(_keyServerUrl);
+    } catch (e) {
+      debugPrint('ContentServerConfigService load error: $e');
+    }
     if (saved != null && saved.trim().isNotEmpty) {
       _currentServerUrl = _sanitizeUrl(saved);
     } else {
@@ -65,6 +76,7 @@ class ContentServerConfigService extends ChangeNotifier {
   }
 
   Future<void> setServerUrl(String url) async {
+    await _ready;
     final clean = _sanitizeUrl(url);
     _currentServerUrl = clean;
     final prefs = await SharedPreferences.getInstance();

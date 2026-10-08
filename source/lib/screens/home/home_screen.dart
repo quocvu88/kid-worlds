@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/database/database_helper.dart';
+import '../../core/services/audio_service.dart';
 import '../../core/services/screen_time_service.dart';
 import '../../core/utils/image_helper.dart';
 import '../../core/theme/app_theme.dart';
@@ -9,7 +10,6 @@ import '../../models/child_model.dart';
 import '../../models/topic_model.dart';
 import '../../widgets/parent_gate_dialog.dart';
 import '../../widgets/screen_time_badge.dart';
-import '../lockout/lockout_screen.dart';
 import '../../widgets/child_profile_popup.dart';
 import '../../widgets/animated_playful_background.dart';
 import '../learning/flashcard_learning_screen.dart';
@@ -253,13 +253,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: ScreenTimeService.instance,
-      builder: (context, _) {
-        if (ScreenTimeService.instance.isLockedOut) {
-          return const LockoutScreen();
-        }
-
+    // Màn khoá được phủ toàn cục trong main.dart; không cần rebuild cả màn hình mỗi giây.
+    return Builder(
+      builder: (context) {
         final activeChild = ScreenTimeService.instance.currentChild;
 
         return AnimatedPlayfulBackground(
@@ -319,87 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             body: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : OrientationBuilder(
-                    builder: (context, orientation) {
-                      final isLandscape = orientation == Orientation.landscape;
-                      final filteredTopics = _getFilteredTopics(activeChild);
-
-                      return SafeArea(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 8),
-                            // Category Tabs (Horizontally scrollable for all packages)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                physics: const BouncingScrollPhysics(),
-                                child: Row(
-                                  children: [
-                                    _buildCategoryTab('Tất cả', 'all', Icons.grid_view_rounded),
-                                    const SizedBox(width: 8),
-                                    _buildCategoryTab('Động vật', 'animals', Icons.pets_rounded),
-                                    const SizedBox(width: 8),
-                                    _buildCategoryTab('Xe cộ', 'vehicles', Icons.directions_car_rounded),
-                                    const SizedBox(width: 8),
-                                    _buildCategoryTab('Trái cây', 'fruits', Icons.apple_rounded),
-                                    const SizedBox(width: 8),
-                                    _buildCategoryTab('Vũ trụ', 'space', Icons.rocket_launch_rounded),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Responsive Topics List / Grid
-                            Expanded(
-                              child: RefreshIndicator(
-                                onRefresh: _loadTopics,
-                                color: AppColors.primary,
-                                child: filteredTopics.isEmpty
-                                    ? ListView(
-                                        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                                        children: [
-                                          SizedBox(height: MediaQuery.of(context).size.height * 0.2),
-                                          Center(
-                                            child: Text(
-                                              'Chưa có bài học cho độ tuổi này (${activeChild?.age ?? 0} tuổi).',
-                                              style: AppTextStyles.configCaption,
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : isLandscape
-                                    ? GridView.builder(
-                                        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          crossAxisSpacing: 14,
-                                          mainAxisSpacing: 10,
-                                          childAspectRatio: 2.5,
-                                        ),
-                                        itemCount: filteredTopics.length,
-                                        itemBuilder: (context, index) {
-                                          return _buildLandscapeTopicCard(filteredTopics[index]);
-                                        },
-                                      )
-                                    : ListView.builder(
-                                        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                        itemCount: filteredTopics.length,
-                                        itemBuilder: (context, index) {
-                                          return _buildTopicCard(filteredTopics[index]);
-                                        },
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                : _buildTopicsBody(activeChild),
           ),
         );
       },
@@ -426,238 +342,265 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildCategoryTab(String title, String categoryKey, IconData icon) {
-    final isSelected = _selectedCategory == categoryKey;
-    return InkWell(
+  // ---------------------------------------------------------------------------
+  // Giao diện chọn chủ đề cho bé: ít chữ, hình to, chạm vào đâu trên thẻ cũng vào học.
+  // ---------------------------------------------------------------------------
+
+  static const List<(String key, String label, String emoji)> _categories = [
+    ('all', 'Tất cả', '🌈'),
+    ('animals', 'Động vật', '🦁'),
+    ('vehicles', 'Xe cộ', '🚗'),
+    ('fruits', 'Trái cây', '🍎'),
+    ('space', 'Vũ trụ', '🚀'),
+  ];
+
+  Widget _buildTopicsBody(Child? activeChild) {
+    final filteredTopics = _getFilteredTopics(activeChild);
+
+    return SafeArea(
+      top: false,
+      child: Column(
+        children: [
+          // Hàng chủ đề: nút tròn có hình (bé chưa biết đọc vẫn chọn được)
+          SizedBox(
+            height: 64,
+            child: Center(
+              child: ListView.separated(
+                shrinkWrap: true,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemBuilder: (context, i) {
+                  final c = _categories[i];
+                  return _buildCategoryBubble(c.$1, c.$2, c.$3);
+                },
+              ),
+            ),
+          ),
+
+          // Thẻ chủ đề cỡ lớn, vuốt ngang
+          Expanded(
+            child: filteredTopics.isEmpty
+                ? _buildEmptyState(activeChild)
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final cardHeight = constraints.maxHeight - 20;
+                      final cardWidth = (cardHeight * 0.82).clamp(160.0, 300.0);
+                      return ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+                        itemCount: filteredTopics.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 18),
+                        itemBuilder: (context, index) => SizedBox(
+                          width: cardWidth,
+                          child: _BigTopicCard(
+                            topic: filteredTopics[index],
+                            color: _getCategoryColor(filteredTopics[index].category),
+                            emoji: _getCategoryEmoji(filteredTopics[index].category),
+                            onTap: () => _openTopic(filteredTopics[index]),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openTopic(Topic topic) async {
+    HapticFeedback.mediumImpact();
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => FlashcardLearningScreen(topic: topic)));
+    if (mounted) _loadTopics();
+  }
+
+  Widget _buildEmptyState(Child? activeChild) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🧸', style: TextStyle(fontSize: 64)),
+          const SizedBox(height: 8),
+          Text(
+            'Chưa có bài học cho độ tuổi này (${activeChild?.age ?? 0} tuổi).',
+            style: AppTextStyles.configCaption,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryBubble(String key, String label, String emoji) {
+    final isSelected = _selectedCategory == key;
+    final color = key == 'all' ? AppColors.primary : _getCategoryColor(key);
+
+    return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        setState(() => _selectedCategory = categoryKey);
+        setState(() => _selectedCategory = key);
+        AudioService.instance.speakVietnamese(label); // đọc tên chủ đề cho bé chưa biết chữ
       },
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutBack,
+        padding: EdgeInsets.only(left: 6, right: isSelected ? 16 : 6),
+        height: isSelected ? 54 : 48,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+          color: isSelected ? color : Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: isSelected ? color : AppColors.border, width: 2),
+          boxShadow: isSelected
+              ? [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 15, color: isSelected ? Colors.white : AppColors.textLight),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: AppTextStyles.configLabel.copyWith(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? Colors.white : AppColors.textBody,
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white : color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
               ),
+              child: Text(emoji, style: const TextStyle(fontSize: 22)),
             ),
+            // Chỉ hiện chữ ở chủ đề đang chọn để gọn, hình là chính
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: AppTextStyles.kidTitle.copyWith(fontSize: 15, color: Colors.white),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildTopicCard(Topic topic) {
-    final cardColor = _getCategoryColor(topic.category);
-    final iconEmoji = _getCategoryEmoji(topic.category);
+/// Thẻ chủ đề cỡ lớn: ảnh tràn thẻ, tên chủ đề to, nút ▶ lớn. Chạm bất kỳ đâu trên thẻ để vào học.
+class _BigTopicCard extends StatefulWidget {
+  final Topic topic;
+  final Color color;
+  final String emoji;
+  final VoidCallback onTap;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(13)),
-            child: SizedBox(
-              width: 86,
-              height: 86,
-              child: (topic.thumbnailPath != null && topic.thumbnailPath!.trim().isNotEmpty)
-                  ? ImageHelper.buildSafeImage(
-                      topic.thumbnailPath,
-                      width: 86,
-                      height: 86,
-                      fit: BoxFit.cover,
-                      fallback: Container(
-                        color: cardColor.withValues(alpha: 0.2),
-                        child: Center(child: Text(iconEmoji, style: const TextStyle(fontSize: 42))),
-                      ),
-                    )
-                  : Container(
-                      color: cardColor.withValues(alpha: 0.2),
-                      child: Center(child: Text(iconEmoji, style: const TextStyle(fontSize: 42))),
-                    ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(topic.titleVi, style: AppTextStyles.kidTitle.copyWith(fontSize: 15)),
-                  Text(topic.titleEn, style: AppTextStyles.configCaption.copyWith(fontSize: 12)),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Offline',
-                          style: AppTextStyles.configCaption.copyWith(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.success,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${topic.targetAgeMin}-${topic.targetAgeMax} tuổi',
-                        style: AppTextStyles.configCaption.copyWith(fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 14.0),
-            child: ElevatedButton(
-              onPressed: () async {
-                HapticFeedback.lightImpact();
-                await Navigator.of(context).push(MaterialPageRoute(builder: (_) => FlashcardLearningScreen(topic: topic)));
-                if (mounted) _loadTopics();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                minimumSize: const Size(60, 32),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: Text('Vào Học', style: AppTextStyles.configButton.copyWith(fontSize: 12)),
-            ),
-          ),
-        ],
-      ),
+  const _BigTopicCard({required this.topic, required this.color, required this.emoji, required this.onTap});
+
+  @override
+  State<_BigTopicCard> createState() => _BigTopicCardState();
+}
+
+class _BigTopicCardState extends State<_BigTopicCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final topic = widget.topic;
+    final fallback = Container(
+      color: widget.color.withValues(alpha: 0.25),
+      alignment: Alignment.center,
+      child: Text(widget.emoji, style: const TextStyle(fontSize: 72)),
     );
-  }
 
-  Widget _buildLandscapeTopicCard(Topic topic) {
-    final cardColor = _getCategoryColor(topic.category);
-    final iconEmoji = _getCategoryEmoji(topic.category);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(13)),
-            child: SizedBox(
-              width: 80,
-              height: double.infinity,
-              child: (topic.thumbnailPath != null && topic.thumbnailPath!.trim().isNotEmpty)
-                  ? ImageHelper.buildSafeImage(
-                      topic.thumbnailPath,
-                      width: 80,
-                      fit: BoxFit.cover,
-                      fallback: Container(
-                        color: cardColor.withValues(alpha: 0.2),
-                        child: Center(child: Text(iconEmoji, style: const TextStyle(fontSize: 38))),
-                      ),
-                    )
-                  : Container(
-                      color: cardColor.withValues(alpha: 0.2),
-                      child: Center(child: Text(iconEmoji, style: const TextStyle(fontSize: 38))),
-                    ),
-            ),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white, width: 4),
+            boxShadow: [
+              BoxShadow(color: widget.color.withValues(alpha: 0.45), blurRadius: 14, offset: const Offset(0, 6)),
+            ],
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    topic.titleVi,
-                    style: AppTextStyles.kidTitle.copyWith(fontSize: 14),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                (topic.thumbnailPath != null && topic.thumbnailPath!.trim().isNotEmpty)
+                    ? ImageHelper.buildSafeImage(topic.thumbnailPath, fit: BoxFit.cover, fallback: fallback)
+                    : fallback,
+
+                // Lớp tối dần ở dưới để chữ trắng dễ đọc
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.45, 1.0],
+                      colors: [Colors.transparent, Color(0xCC000000)],
+                    ),
                   ),
-                  Text(
-                    topic.titleEn,
-                    style: AppTextStyles.configCaption.copyWith(fontSize: 11.5),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                ),
+
+                // Huy hiệu chủ đề
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(widget.emoji, style: const TextStyle(fontSize: 24)),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
+                ),
+
+                // Tên chủ đề + nút chơi
+                Positioned(
+                  left: 14,
+                  right: 12,
+                  bottom: 12,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                      Expanded(
                         child: Text(
-                          'Offline',
-                          style: AppTextStyles.configCaption.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.success,
+                          topic.titleVi,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.kidTitle.copyWith(
+                            fontSize: 20,
+                            height: 1.15,
+                            color: Colors.white,
+                            shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${topic.targetAgeMin}-${topic.targetAgeMax} tuổi',
-                        style: AppTextStyles.configCaption.copyWith(fontSize: 10.5),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: widget.color,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3),
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: ElevatedButton(
-              onPressed: () async {
-                HapticFeedback.lightImpact();
-                await Navigator.of(context).push(MaterialPageRoute(builder: (_) => FlashcardLearningScreen(topic: topic)));
-                if (mounted) _loadTopics();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: const Size(60, 30),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: Text('Vào Học', style: AppTextStyles.configButton.copyWith(fontSize: 11.5)),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

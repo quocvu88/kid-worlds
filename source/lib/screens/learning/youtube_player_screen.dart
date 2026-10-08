@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
+import '../../core/app_info.dart';
 import '../../core/services/audio_service.dart';
+import '../../core/services/screen_time_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/topic_item_model.dart';
 import '../../widgets/animated_playful_background.dart';
@@ -24,9 +26,22 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
   bool _isFullScreen = false;
   OverlayEntry? _exitFullscreenOverlay;
 
+  bool _wasLocked = false;
+
+  /// Dừng video ngay khi hết giờ chơi (màn khoá phủ lên trên nhưng video vẫn có thể phát tiếng).
+  void _onScreenTimeChanged() {
+    final locked = ScreenTimeService.instance.isLockedOut;
+    if (locked && !_wasLocked) {
+      if (_isFullScreen) _controller.exitFullScreen();
+      _controller.pauseVideo();
+    }
+    _wasLocked = locked;
+  }
+
   @override
   void initState() {
     super.initState();
+    ScreenTimeService.instance.addListener(_onScreenTimeChanged);
     // Stop any ongoing audio/TTS before video plays
     AudioService.instance.stop();
 
@@ -62,12 +77,7 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
       _showExitFullscreenOverlay();
     } else {
       _removeExitFullscreenOverlay();
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
+      SystemChrome.setPreferredOrientations(kAppOrientations);
     }
   }
 
@@ -136,16 +146,12 @@ class _YoutubePlayerScreenState extends State<YoutubePlayerScreen> {
 
   @override
   void dispose() {
+    ScreenTimeService.instance.removeListener(_onScreenTimeChanged);
     _playerSub?.cancel();
     _removeExitFullscreenOverlay();
     _controller.close();
-    // Reset orientations when exiting screen
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    // Trả về chế độ chỉ màn hình ngang khi thoát (player có thể đã đổi hướng lúc fullscreen)
+    SystemChrome.setPreferredOrientations(kAppOrientations);
     super.dispose();
   }
 

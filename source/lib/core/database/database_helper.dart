@@ -18,6 +18,14 @@ class DatabaseHelper {
 
   DatabaseHelper._init();
 
+  /// v3: bật foreign keys, chuyển các bản vá dữ liệu mẫu sang migration (chạy 1 lần), dọn dữ liệu mồ côi.
+  static const int _dbVersion = 3;
+
+  Future<void> _configureDB(Database db) async {
+    // SQLite mặc định TẮT foreign keys → ON DELETE CASCADE không chạy nếu thiếu dòng này
+    await db.execute('PRAGMA foreign_keys = ON');
+  }
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB('kids_world.db');
@@ -31,7 +39,8 @@ class DatabaseHelper {
       db = await factory.openDatabase(
         'kids_world_web.db',
         options: OpenDatabaseOptions(
-          version: 2,
+          version: _dbVersion,
+          onConfigure: _configureDB,
           onCreate: _createDB,
           onUpgrade: _upgradeDB,
         ),
@@ -41,7 +50,8 @@ class DatabaseHelper {
       final path = join(dbPath, filePath);
       db = await openDatabase(
         path,
-        version: 2,
+        version: _dbVersion,
+        onConfigure: _configureDB,
         onCreate: _createDB,
         onUpgrade: _upgradeDB,
       );
@@ -54,25 +64,40 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       await _ensureColumnsExist(db);
     }
+    if (oldVersion < 3) {
+      await _ensureColumnsExist(db);
+      await _patchSeedContent(db);
+      await _cleanupOrphans(db);
+    }
+  }
+
+  /// Xoá dữ liệu mồ côi tạo ra trước khi bật foreign keys (ví dụ khi đã xoá bé/chủ đề).
+  Future<void> _cleanupOrphans(DatabaseExecutor db) async {
+    await db.execute('DELETE FROM screen_time_settings WHERE child_id NOT IN (SELECT id FROM children)');
+    await db.execute('DELETE FROM activity_logs WHERE child_id NOT IN (SELECT id FROM children)');
+    await db.execute('DELETE FROM topic_items WHERE topic_id NOT IN (SELECT id FROM topics)');
   }
 
   Future<void> _ensureColumnsExist(Database db) async {
-    // Ensure topics columns
-    final topicColumns = [
-      'background_path TEXT',
-      'theme_color TEXT',
-      'selected_games_json TEXT',
-    ];
-    for (final col in topicColumns) {
-      try {
-        await db.execute('ALTER TABLE topics ADD COLUMN $col');
-      } catch (_) {
-        // Already exists, ignore
+    // Chỉ ALTER những cột thực sự thiếu (trước đây thử ALTER mọi cột mỗi lần mở app rồi nuốt lỗi)
+    Future<void> addMissing(String table, List<String> columnDefs) async {
+      final info = await db.rawQuery('PRAGMA table_info($table)');
+      final existing = info.map((r) => (r['name'] as String).toLowerCase()).toSet();
+      for (final def in columnDefs) {
+        final name = def.split(' ').first.toLowerCase();
+        if (!existing.contains(name)) {
+          await db.execute('ALTER TABLE $table ADD COLUMN $def');
+        }
       }
     }
 
-    // Ensure topic_items columns
-    final itemColumns = [
+    await addMissing('topics', [
+      'background_path TEXT',
+      'theme_color TEXT',
+      'selected_games_json TEXT',
+    ]);
+
+    await addMissing('topic_items', [
       'phonics_en TEXT',
       'real_image_url TEXT',
       'sfx_sound TEXT',
@@ -82,14 +107,7 @@ class DatabaseHelper {
       'prompt_question_en TEXT',
       'action_hint_vi TEXT',
       'coloring_outline_url TEXT',
-    ];
-    for (final col in itemColumns) {
-      try {
-        await db.execute('ALTER TABLE topic_items ADD COLUMN $col');
-      } catch (_) {
-        // Already exists, ignore
-      }
-    }
+    ]);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -178,6 +196,7 @@ class DatabaseHelper {
 
     // Seed Initial Sample Data
     await _seedInitialData(db);
+    await _patchSeedContent(db);
   }
 
   Future<void> _seedInitialData(Database db) async {
@@ -502,7 +521,12 @@ class DatabaseHelper {
 
   Future<void> deleteChild(String id) async {
     final db = await database;
-    await db.delete('children', where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      // Xoá tường minh (phòng khi foreign keys không khả dụng trên nền tảng nào đó)
+      await txn.delete('activity_logs', where: 'child_id = ?', whereArgs: [id]);
+      await txn.delete('screen_time_settings', where: 'child_id = ?', whereArgs: [id]);
+      await txn.delete('children', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   // Screen Time Settings
@@ -588,8 +612,9 @@ class DatabaseHelper {
     });
   }
 
-  Future<List<TopicItem>> getTopicItems(String topicId) async {
-    final db = await database;
+  /// Bản vá dữ liệu mẫu (trước đây chạy ~17 lệnh UPDATE mỗi lần mở chủ đề).
+  /// Nay chỉ chạy 1 lần khi tạo/nâng cấp DB.
+  Future<void> _patchSeedContent(DatabaseExecutor db) async {
     // Auto-update to verified active YouTube videos
     await db.rawUpdate("UPDATE topic_items SET youtube_video_id = 'f9qIBCNxXXM' WHERE id = 'item_lion' AND (youtube_video_id IS NULL OR youtube_video_id = '4mNZK2H9v-o')");
     await db.rawUpdate("UPDATE topic_items SET youtube_video_id = 'z4FbTIldHys' WHERE id = 'item_elephant' AND (youtube_video_id IS NULL OR youtube_video_id = '4k3uLgT8D2o')");
@@ -714,6 +739,10 @@ class DatabaseHelper {
       WHERE id = 'item_boat' AND (phonics_en IS NULL OR phonics_en = '');
     ''');
 
+  }
+
+  Future<List<TopicItem>> getTopicItems(String topicId) async {
+    final db = await database;
     final maps = await db.query('topic_items', where: 'topic_id = ?', whereArgs: [topicId]);
     return maps.map((e) => TopicItem.fromMap(e)).toList();
   }
@@ -737,39 +766,37 @@ class DatabaseHelper {
 
   Future<Map<String, dynamic>> getChildStats(String childId) async {
     final db = await database;
-    // Total usage today
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    final todayLogs = await db.rawQuery(
-      '''
-      SELECT SUM(duration_seconds) as total_seconds, COUNT(*) as action_count
-      FROM activity_logs
-      WHERE child_id = ? AND timestamp LIKE '$todayStr%'
-    ''',
-      [childId],
-    );
+
+    // Thời gian dùng hôm nay: lấy từ bộ đếm thời gian thực của ScreenTimeService
+    // (trước đây cộng cứng 5 giây/hành động nên luôn sai).
+    final now = DateTime.now();
+    final today =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final prefs = await SharedPreferences.getInstance();
+    final usedSecondsToday = prefs.getInt('screen_time_${childId}_$today') ?? 0;
 
     // Distinct words heard/practiced
     final wordsCount = await db.rawQuery(
       '''
       SELECT COUNT(DISTINCT item_id) as total_words
       FROM activity_logs
-      WHERE child_id = ? AND (action_type = 'listen_pronounce' OR action_type = 'view_card')
+      WHERE child_id = ? AND action_type IN ('listen_pronounce', 'view_card', 'listen_phonics')
     ''',
       [childId],
     );
 
-    // Videos watched
+    // Videos watched (app ghi 'watch_youtube'; giữ 'watch_video' cho dữ liệu cũ)
     final videoLogs = await db.rawQuery(
       '''
       SELECT COUNT(*) as total_videos
       FROM activity_logs
-      WHERE child_id = ? AND action_type = 'watch_video'
+      WHERE child_id = ? AND action_type IN ('watch_youtube', 'watch_video')
     ''',
       [childId],
     );
 
     return {
-      'total_minutes_today': ((todayLogs.first['total_seconds'] as int? ?? 0) / 60).round(),
+      'total_minutes_today': (usedSecondsToday / 60).round(),
       'total_words_learned': wordsCount.first['total_words'] as int? ?? 0,
       'total_videos_watched': videoLogs.first['total_videos'] as int? ?? 0,
     };

@@ -26,7 +26,10 @@ class TopicGamesHubDialog extends StatelessWidget {
     TopicItem? currentItem,
   }) {
     HapticFeedback.mediumImpact();
-    AudioService.instance.speakVietnamese('Chào mừng bé đến với Khu Vui Chơi ${topic.titleVi}!');
+    AudioService.instance.speakVietnameseAfterTransition(
+      'Chào mừng bé đến với Khu Vui Chơi ${topic.titleVi}!',
+      delay: const Duration(milliseconds: 350),
+    );
 
     showModalBottomSheet(
       context: context,

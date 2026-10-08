@@ -62,10 +62,15 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
   void dispose() {
     _gameTimer?.cancel();
     _confettiController.dispose();
+    AudioService.instance.stop(); // thoát game thì ngừng đọc
     super.dispose();
   }
 
+  /// Tăng mỗi ván mới; callback trễ (Future.delayed) của ván cũ sẽ bị bỏ qua.
+  int _gameGeneration = 0;
+
   void _initGame() {
+    _gameGeneration++;
     _gameTimer?.cancel();
     _secondsElapsed = 0;
     _turnsCount = 0;
@@ -99,7 +104,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
     });
 
     _startTimer();
-    AudioService.instance.speakVietnamese('Bé hãy tìm các cặp hình giống nhau nhé!');
+    AudioService.instance.speakVietnameseAfterTransition('Bé hãy tìm các cặp hình giống nhau nhé!', isActive: () => mounted);
   }
 
   void _startTimer() {
@@ -131,6 +136,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
 
   void _checkMatch() {
     _isProcessing = true;
+    final generation = _gameGeneration;
     final card1 = _firstSelectedCard!;
     final card2 = _secondSelectedCard!;
 
@@ -138,7 +144,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
       // Match found!
       HapticFeedback.mediumImpact();
       Future.delayed(const Duration(milliseconds: 400), () {
-        if (!mounted) return;
+        if (!mounted || generation != _gameGeneration) return;
         setState(() {
           card1.isMatched = true;
           card2.isMatched = true;
@@ -157,7 +163,7 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
     } else {
       // Not matched, flip back
       Future.delayed(const Duration(milliseconds: 900), () {
-        if (!mounted) return;
+        if (!mounted || generation != _gameGeneration) return;
         setState(() {
           card1.isFlipped = false;
           card2.isFlipped = false;

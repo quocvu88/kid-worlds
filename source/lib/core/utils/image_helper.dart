@@ -1,5 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import '../services/content_server_config_service.dart';
+
+/// Danh sách asset thực sự được đóng gói trong app (đọc từ AssetManifest lúc khởi động).
+/// Dùng để bỏ qua các đường dẫn `assets/...` trong dữ liệu mẫu nhưng chưa có file thật.
+class BundledAssets {
+  static Set<String>? _assets;
+
+  static Future<void> init() async {
+    if (_assets != null) return;
+    try {
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      _assets = manifest.listAssets().toSet();
+    } catch (e) {
+      debugPrint('BundledAssets init error: $e');
+    }
+  }
+
+  /// true nếu không phải asset, hoặc asset có trong gói. Nếu chưa init thì coi như có.
+  static bool exists(String path) {
+    final p = path.trim();
+    if (!p.startsWith('assets/')) return true;
+    return _assets == null || _assets!.contains(p);
+  }
+}
 
 class ImageHelper {
   /// Resolve any image path or URL into a reachable, valid URL or asset path
@@ -7,9 +32,9 @@ class ImageHelper {
     if (rawUrl == null || rawUrl.trim().isEmpty) return '';
     String url = rawUrl.trim();
 
-    // 1. Local assets
+    // 1. Local assets (bỏ qua asset không có trong gói để hiện ảnh dự phòng)
     if (url.startsWith('assets/')) {
-      return url;
+      return BundledAssets.exists(url) ? url : '';
     }
 
     // 2. Fix legacy or deprecated Wikimedia thumb domain

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../core/navigation.dart';
 import '../../core/services/audio_service.dart';
 import '../../core/services/screen_time_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/parent_gate_dialog.dart';
 import '../../widgets/animated_playful_background.dart';
+import '../profile/profile_selection_screen.dart';
 
 class LockoutScreen extends StatelessWidget {
   const LockoutScreen({super.key});
@@ -187,7 +189,12 @@ class LockoutScreen extends StatelessWidget {
             HapticFeedback.lightImpact();
             final passed = await ParentGateDialog.verify(context, title: 'Đổi Hồ Sơ Bé');
             if (passed) {
-              ScreenTimeService.instance.resetDailyTime();
+              // Bỏ chọn bé hiện tại (KHÔNG cộng lại giờ) và quay về màn chọn hồ sơ
+              await ScreenTimeService.instance.clearActiveChild();
+              appNavigatorKey.currentState?.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const ProfileSelectionScreen()),
+                (route) => false,
+              );
             }
           },
           child: Text(

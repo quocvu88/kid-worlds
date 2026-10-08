@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import '../../core/app_info.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/services/content_server_config_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/image_helper.dart';
 import '../profile/profile_selection_screen.dart';
 import '../../widgets/animated_playful_background.dart';
 
@@ -24,6 +27,10 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       // 1. Initialize SQLite
       await DatabaseHelper.instance.database;
+
+      // 1b. Nạp URL máy chủ nội dung đã lưu (để ảnh/âm thanh từ CMS dùng đúng địa chỉ)
+      await ContentServerConfigService.instance.ready;
+      await BundledAssets.init();
 
       // 2. Nạp trước hình nền để chuyển màn hình mượt mà
       if (mounted) await AppBackgrounds.precacheAll(context);
@@ -80,6 +87,11 @@ class _SplashScreenState extends State<SplashScreen> {
               ).animate().fadeIn(delay: 500.ms),
               const SizedBox(height: 48),
               const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary)),
+              const SizedBox(height: 16),
+              const Text(
+                'Phiên bản $kAppVersion',
+                style: TextStyle(fontSize: 12, color: AppColors.textBody),
+              ),
             ],
           ),
         ),

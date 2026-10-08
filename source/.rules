@@ -1,11 +1,9 @@
 # KIDS WORLD - CODING & UI/UX RULES
 
-## 1. MANDATORY RESPONSIVE DESIGN (PORTRAIT & LANDSCAPE)
-- Tất cả các màn hình, widget, dialog và popup khi thiết kế BẮT BUỘC phải thích ứng hoàn hảo cho cả **Màn hình Dọc (Portrait)** và **Màn hình Ngang (Landscape)**.
-- Khi xoay màn hình (orientation change):
-  - Chiều dọc: Lưới 2 cột hoặc danh sách cuộn dọc.
-  - Chiều ngang: Lưới 3-4 cột hoặc chia 2 nửa (Row: Trái / Phải) tận dụng chiều ngang màn hình.
-  - Tuyệt đối không để xảy ra lỗi RenderFlex overflow (bọc trong `SingleChildScrollView`, `Flexible`, `Expanded`).
+## 1. CHỈ HIỂN THỊ MÀN HÌNH NGANG (LANDSCAPE ONLY)
+- App khoá ở màn hình ngang. Dùng `kAppOrientations` trong `lib/core/app_info.dart`; mọi màn hình/dialog thiết kế cho chiều ngang (lưới 3-4 cột hoặc chia Trái/Phải).
+- Màn hình tạm đổi hướng (vd YouTube fullscreen) phải trả về `kAppOrientations` khi thoát.
+- Không để RenderFlex overflow, kể cả trên điện thoại ngang thấp (~360dp chiều cao).
 
 ## 2. KIDS-APP-UIUX-DESIGNER STANDARDS
 - Touch target lớn: tối thiểu 48x48 dp, nút bấm chính 56–72 dp.

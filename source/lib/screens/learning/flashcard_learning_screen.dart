@@ -15,7 +15,6 @@ import '../../core/utils/image_helper.dart';
 import '../../models/activity_log_model.dart';
 import '../../models/topic_item_model.dart';
 import '../../models/topic_model.dart';
-import '../lockout/lockout_screen.dart';
 import 'games/topic_games_hub_dialog.dart';
 import 'youtube_player_screen.dart';
 
@@ -76,7 +75,7 @@ class _FlashcardLearningScreenState extends State<FlashcardLearningScreen> {
     } else {
       _logItemAction(items.first, 'view_card');
       // Speak English by default when card opens
-      AudioService.instance.speakEnglish(items.first.nameEn);
+      _playEnglishWord(items.first);
     }
   }
 
@@ -155,7 +154,7 @@ class _FlashcardLearningScreenState extends State<FlashcardLearningScreen> {
     if (index < _items.length) {
       final currentItem = _items[index];
       _logItemAction(currentItem, 'view_card');
-      AudioService.instance.speakEnglish(currentItem.nameEn);
+      _playEnglishWord(currentItem);
     }
 
     // Trigger celebration when reaching last card
@@ -168,16 +167,21 @@ class _FlashcardLearningScreenState extends State<FlashcardLearningScreen> {
     }
   }
 
+  /// Ưu tiên file phát âm tải lên từ CMS, nếu không có thì đọc bằng TTS.
+  void _playEnglishWord(TopicItem item) {
+    AudioService.instance.playPronunciation(item.pronounceEnUrl, fallbackText: item.nameEn, language: 'en-US');
+  }
+
   void _speakEnglish(TopicItem item) {
     HapticFeedback.lightImpact();
     _logItemAction(item, 'listen_pronounce');
-    AudioService.instance.speakEnglish(item.nameEn);
+    _playEnglishWord(item);
   }
 
   void _speakVietnamese(TopicItem item) {
     HapticFeedback.lightImpact();
     _logItemAction(item, 'listen_pronounce');
-    AudioService.instance.speakVietnamese(item.nameVi);
+    AudioService.instance.playPronunciation(item.pronounceViUrl, fallbackText: item.nameVi, language: 'vi-VN');
   }
 
   void _playSfx(TopicItem item) {
@@ -472,12 +476,9 @@ class _FlashcardLearningScreenState extends State<FlashcardLearningScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: ScreenTimeService.instance,
-      builder: (context, _) {
-        if (ScreenTimeService.instance.isLockedOut) {
-          return const LockoutScreen();
-        }
+    // Màn khoá được phủ toàn cục trong main.dart; không cần rebuild cả màn hình mỗi giây.
+    return Builder(
+      builder: (context) {
 
         return Stack(
           fit: StackFit.expand,

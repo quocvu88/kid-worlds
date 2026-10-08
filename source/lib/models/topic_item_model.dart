@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../core/utils/image_helper.dart';
+
 class MapCoordinates {
   final double x;
   final double y;
@@ -72,7 +74,10 @@ class TopicItem {
     try {
       final list = jsonDecode(imagesJson);
       if (list is List) {
-        return list.map((e) => e.toString()).toList();
+        return list
+            .map((e) => e.toString())
+            .where((e) => e.trim().isNotEmpty && BundledAssets.exists(e))
+            .toList();
       }
     } catch (_) {}
     return [];

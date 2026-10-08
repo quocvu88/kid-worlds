@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
+import 'dart:ui' as ui;
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,11 +11,15 @@ import '../../../core/utils/image_helper.dart';
 import '../../../models/topic_item_model.dart';
 import '../../../models/topic_model.dart';
 
-class DrawingPoint {
-  final Offset point;
-  final Paint paint;
+/// Một nét vẽ. Toạ độ điểm và độ dày được CHUẨN HOÁ theo cạnh khung vẽ (0..1)
+/// để nét không bị lệch khi xoay màn hình / đổi kích thước.
+class _Stroke {
+  final Color color;
+  final double width; // tỉ lệ so với chiều rộng khung vẽ
+  final bool isEraser;
+  final List<Offset> points = [];
 
-  DrawingPoint({required this.point, required this.paint});
+  _Stroke({required this.color, required this.width, required this.isEraser});
 }
 
 class ColoringGameScreen extends StatefulWidget {
@@ -37,8 +42,17 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
   late ConfettiController _confettiController;
   late TopicItem _activeItem;
   
-  final List<List<DrawingPoint?>> _strokes = [];
-  List<DrawingPoint?> _currentStroke = [];
+  final List<_Stroke> _strokes = [];
+  _Stroke? _currentStroke;
+
+  /// Tăng giá trị để vẽ lại canvas mà không rebuild cả màn hình.
+  final ValueNotifier<int> _repaint = ValueNotifier<int>(0);
+
+  // Tranh nét (outline) được nạp thành ui.Image để vẽ chồng lên nét tô bằng BlendMode.multiply
+  ui.Image? _outlineImage;
+  ImageStream? _outlineStream;
+  ImageStreamListener? _outlineListener;
+  String _outlineKey = '';
   
   Color _selectedColor = const Color(0xFFFF3B30);
   double _strokeWidth = 14.0;
@@ -63,8 +77,54 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+    // Ẩn status bar + thanh điều hướng để dành tối đa chỗ cho khung vẽ (vuốt từ mép để hiện lại)
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _activeItem = widget.currentItem ?? (widget.items.isNotEmpty ? widget.items.first : _dummyItem());
-    AudioService.instance.speakVietnamese('Bé hãy chọn màu yêu thích và tô tranh nhé!');
+    AudioService.instance.speakVietnameseAfterTransition('Bé hãy chọn màu yêu thích và tô tranh nhé!', isActive: () => mounted);
+    _loadOutline();
+  }
+
+  bool get _hasOutline =>
+      _activeItem.coloringOutlineUrl != null && _activeItem.coloringOutlineUrl!.trim().isNotEmpty;
+
+  void _loadOutline() {
+    final url = _hasOutline ? ImageHelper.resolveUrl(_activeItem.coloringOutlineUrl) : '';
+    if (url == _outlineKey) return;
+    _disposeOutlineStream();
+    _outlineKey = url;
+    _outlineImage = null;
+    if (url.isEmpty) return;
+
+    final ImageProvider provider = url.startsWith('assets/') ? AssetImage(url) : NetworkImage(url);
+    final stream = provider.resolve(ImageConfiguration.empty);
+    final listener = ImageStreamListener(
+      (info, _) {
+        if (!mounted || _outlineKey != url) return;
+        setState(() => _outlineImage = info.image);
+      },
+      onError: (error, _) => debugPrint('Không tải được tranh nét $url: $error'),
+    );
+    stream.addListener(listener);
+    _outlineStream = stream;
+    _outlineListener = listener;
+  }
+
+  void _disposeOutlineStream() {
+    if (_outlineStream != null && _outlineListener != null) {
+      _outlineStream!.removeListener(_outlineListener!);
+    }
+    _outlineStream = null;
+    _outlineListener = null;
+  }
+
+  void _selectItem(TopicItem it) {
+    setState(() {
+      _activeItem = it;
+      _strokes.clear();
+      _currentStroke = null;
+    });
+    _loadOutline();
+    _repaint.value++;
   }
 
   TopicItem _dummyItem() {
@@ -79,20 +139,26 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
 
   @override
   void dispose() {
+    _disposeOutlineStream();
+    _repaint.dispose();
     _confettiController.dispose();
+    AudioService.instance.stop(); // thoát game thì ngừng đọc
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
   void _undo() {
     HapticFeedback.lightImpact();
     if (_strokes.isNotEmpty) {
-      setState(() => _strokes.removeLast());
+      _strokes.removeLast();
+      _repaint.value++;
     }
   }
 
   void _clearCanvas() {
     HapticFeedback.mediumImpact();
-    setState(() => _strokes.clear());
+    _strokes.clear();
+    _repaint.value++;
   }
 
   void _saveArtwork() {
@@ -210,22 +276,19 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final orientation = MediaQuery.of(context).orientation;
-    final isLandscape = orientation == Orientation.landscape;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           SafeArea(
             child: Column(
               children: [
                 // Top Header bar
-                _buildTopBar(isLandscape),
+                _buildTopBar(),
 
                 // Main Workspace
                 Expanded(
-                  child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+                  child: _buildLandscapeLayout(),
                 ),
               ],
             ),
@@ -256,126 +319,196 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     );
   }
 
-  Widget _buildTopBar(bool isLandscape) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.2))),
-      ),
-      child: Row(
+  // Thanh trên (44dp): quay lại | bảng màu (giữa) | đổi tranh + lưu (phải)
+  Widget _buildTopBar() {
+    return SizedBox(
+      height: 44,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textDark, size: 24),
-            onPressed: () => Navigator.of(context).pop(),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textDark, size: 26),
+              tooltip: 'Quay lại',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ),
-          const SizedBox(width: 6),
-          const Text('🎨', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+
+          // Nút bảng màu ở giữa: chấm giữa là màu đang chọn
+          _PaletteButton(
+            selectedColor: _selectedColor,
+            isEraser: _isEraser,
+            palette: _palette,
+            onTap: _openColorPicker,
+          ),
+
+          Align(
+            alignment: Alignment.centerRight,
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Tô Màu: ${_activeItem.nameVi}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textDark),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                if (widget.items.length > 1)
+                  IconButton(
+                    icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.secondary, size: 28),
+                    tooltip: 'Đổi tranh',
+                    onPressed: _openItemPicker,
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.favorite_rounded, color: AppColors.primary, size: 26),
+                  tooltip: 'Lưu tranh',
+                  onPressed: _saveArtwork,
                 ),
-                Text(
-                  widget.topic.titleVi,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textLight),
-                ),
+                const SizedBox(width: 4),
               ],
             ),
-          ),
-
-          // Items Carousel Selector mini
-          if (widget.items.length > 1) ...[
-            SizedBox(
-              height: 36,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                shrinkWrap: true,
-                itemCount: math.min(widget.items.length, 6),
-                itemBuilder: (context, idx) {
-                  final it = widget.items[idx];
-                  final isSelected = it.id == _activeItem.id;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: InkWell(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _activeItem = it;
-                          _strokes.clear();
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(18),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Center(
-                          child: Text(
-                            it.nameVi,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              color: isSelected ? Colors.white : AppColors.textDark,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-
-          // Save button
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            icon: const Icon(Icons.favorite_rounded, size: 16),
-            label: const Text('Lưu Tranh', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            onPressed: _saveArtwork,
           ),
         ],
       ),
     );
   }
 
-  // Màn hình ngang (Landscape): Cụm công cụ bên trái, nét vẽ ô tròn bên phải, bảng màu ở cạnh dưới
-  Widget _buildLandscapeLayout() {
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              // Cột bên trái: Công cụ vẽ (Bút, Tẩy, Hoàn tác, Xóa) - Không text
-              _buildLeftToolBar(),
-
-              // Vùng trung tâm: Canvas vẽ tranh
-              Expanded(child: _buildDrawingArea()),
-
-              // Cột bên phải: Chọn kích thước nét vẽ dạng ô tròn trực quan
-              _buildRightSizeBar(),
-            ],
+  /// Bảng chọn màu: các ô màu lớn (52dp) dễ bấm cho bé.
+  void _openColorPicker() {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 14,
+              runSpacing: 14,
+              children: _palette.map((color) {
+                final isSelected = !_isEraser && _selectedColor == color;
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _selectedColor = color;
+                      _isEraser = false;
+                    });
+                    Navigator.of(ctx).pop();
+                  },
+                  child: Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isSelected ? AppColors.textDark : Colors.grey.withValues(alpha: 0.35),
+                        width: isSelected ? 4 : 1.5,
+                      ),
+                    ),
+                    child: isSelected
+                        ? Icon(Icons.check_rounded,
+                            color: color.computeLuminance() > 0.6 ? AppColors.textDark : Colors.white, size: 28)
+                        : null,
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ),
+      ),
+    );
+  }
 
-        // Cạnh dưới màn hình: Bảng màu trải ngang
-        _buildBottomPaletteBar(),
+  /// Danh sách tranh: dùng ảnh thu nhỏ (ảnh thật) của từng thẻ.
+  void _openItemPicker() {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      builder: (ctx) {
+        final size = MediaQuery.sizeOf(ctx);
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 640, maxHeight: size.height * 0.85),
+            child: GridView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 130,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.85,
+              ),
+              itemCount: widget.items.length,
+              itemBuilder: (context, idx) {
+                final it = widget.items[idx];
+                final isSelected = it.id == _activeItem.id;
+                final thumb = it.effectiveRealImage ?? it.primaryImage;
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    Navigator.of(ctx).pop();
+                    if (!isSelected) _selectItem(it);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.25),
+                        width: isSelected ? 3 : 1.5,
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: ImageHelper.buildSafeImage(
+                            thumb,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            fallback: Center(child: Text(it.emoji, style: const TextStyle(fontSize: 40))),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                          child: Text(
+                            it.nameVi,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              color: isSelected ? AppColors.primary : AppColors.textDark,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Bố cục ngang: công cụ bên trái, khung vẽ ở giữa (cao hết cỡ), cỡ nét bên phải
+  Widget _buildLandscapeLayout() {
+    return Row(
+      children: [
+        _buildLeftToolBar(),
+        Expanded(child: _buildDrawingArea()),
+        _buildRightSizeBar(),
       ],
     );
   }
@@ -383,14 +516,8 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
   // Cột công cụ bên trái (Landscape)
   Widget _buildLeftToolBar() {
     return Container(
-      width: 62,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          right: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
-        ),
-      ),
+      width: 54,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       child: Center(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -452,14 +579,8 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     final sizes = const [6.0, 12.0, 20.0, 28.0];
 
     return Container(
-      width: 62,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          left: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
-        ),
-      ),
+      width: 54,
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       child: Center(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -479,218 +600,79 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     );
   }
 
-  // Thanh bảng màu nằm ở cạnh dưới màn hình
-  Widget _buildBottomPaletteBar() {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Center(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: _palette.map((color) {
-              final isSelected = !_isEraser && _selectedColor == color;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: _buildColorCircle(color, isSelected),
-              );
-            }).toList(),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget _buildDrawingArea() {
+    final hasOutline = _hasOutline;
+    final outlineReady = hasOutline && _outlineImage != null;
+    // Khi chưa có tranh nét: dùng ảnh minh hoạ mờ làm nền gợi ý
+    final backgroundImage = hasOutline ? _activeItem.coloringOutlineUrl!.trim() : _activeItem.primaryImage;
 
-  // Màn hình dọc (Portrait)
-  Widget _buildPortraitLayout() {
-    final sizes = const [6.0, 12.0, 20.0, 30.0];
+    // Không viền/khung/bóng: tranh chiếm hết chiều cao vùng giữa
+    return ColoredBox(
+      color: Colors.white,
+      child: ClipRect(
+        // Khung vẽ lấp đầy toàn bộ vùng giữa. App chỉ chạy màn ngang + toàn màn hình nên kích thước
+        // khung ổn định; toạ độ nét vẽ vẫn được chuẩn hoá theo khung.
+        child: LayoutBuilder(
+              builder: (context, constraints) {
+                final canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
 
-    return Column(
-      children: [
-        Expanded(child: _buildDrawingArea()),
+                Offset normalize(Offset p) => Offset(
+                      (p.dx / canvasSize.width).clamp(0.0, 1.0),
+                      (p.dy / canvasSize.height).clamp(0.0, 1.0),
+                    );
 
-        // Thanh điều khiển dưới đáy
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.15))),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Hàng màu
-              _buildBottomPaletteBar(),
-
-              // Hàng công cụ + Kích thước nét vẽ ô tròn
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                return Stack(
+                  fit: StackFit.expand,
                   children: [
-                    _buildIconToolButton(
-                      icon: Icons.brush_rounded,
-                      tooltip: 'Cọ vẽ',
-                      isSelected: !_isEraser,
-                      onTap: () => setState(() => _isEraser = false),
-                    ),
-                    _buildEraserToolButton(
-                      tooltip: 'Cục tẩy',
-                      isSelected: _isEraser,
-                      onTap: () => setState(() => _isEraser = true),
-                    ),
-                    // Kích thước nét dạng ô tròn thực tế
-                    ...sizes.map((size) {
-                      final isSelected = _strokeWidth == size;
-                      return _buildActualSizeCircleButton(size, isSelected);
-                    }),
-                    _buildIconToolButton(
-                      icon: Icons.undo_rounded,
-                      tooltip: 'Hoàn tác',
-                      isSelected: false,
-                      color: AppColors.textDark,
-                      onTap: _undo,
-                    ),
-                    _buildIconToolButton(
-                      icon: Icons.delete_outline_rounded,
-                      tooltip: 'Xóa vẽ lại',
-                      isSelected: false,
-                      color: Colors.redAccent,
-                      onTap: _clearCanvas,
+                    // Nền gợi ý (ảnh mờ) hoặc tranh nét trong lúc đang tải
+                    if (!outlineReady && backgroundImage.isNotEmpty)
+                      Opacity(
+                        opacity: hasOutline ? 0.90 : 0.35,
+                        child: ImageHelper.buildSafeImage(
+                          backgroundImage,
+                          fit: BoxFit.contain,
+                          fallback: Center(
+                            child: Text(_activeItem.emoji, style: const TextStyle(fontSize: 100)),
+                          ),
+                        ),
+                      ),
+
+                    // Lớp vẽ: nét tô nằm DƯỚI tranh nét (multiply) nên không che mất đường viền
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanStart: (details) {
+                        if (canvasSize.width <= 0) return;
+                        final stroke = _Stroke(
+                          color: _selectedColor,
+                          width: _strokeWidth / canvasSize.width,
+                          isEraser: _isEraser,
+                        )..points.add(normalize(details.localPosition));
+                        _currentStroke = stroke;
+                        _strokes.add(stroke);
+                        _repaint.value++;
+                      },
+                      onPanUpdate: (details) {
+                        final stroke = _currentStroke;
+                        if (stroke == null) return;
+                        stroke.points.add(normalize(details.localPosition));
+                        _repaint.value++;
+                      },
+                      onPanEnd: (_) => _currentStroke = null,
+                      child: RepaintBoundary(
+                        child: CustomPaint(
+                          painter: _ColoringPainter(
+                            strokes: _strokes,
+                            outline: outlineReady ? _outlineImage : null,
+                            repaint: _repaint,
+                          ),
+                          size: Size.infinite,
+                        ),
+                      ),
                     ),
                   ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDrawingArea() {
-    final hasOutline = _activeItem.coloringOutlineUrl != null && _activeItem.coloringOutlineUrl!.trim().isNotEmpty;
-    final imageToOutline = hasOutline ? _activeItem.coloringOutlineUrl!.trim() : _activeItem.primaryImage;
-
-    return Container(
-      margin: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background Image / Outline
-            if (imageToOutline.isNotEmpty)
-              Opacity(
-                opacity: hasOutline ? 0.90 : 0.35,
-                child: ImageHelper.buildSafeImage(
-                  imageToOutline,
-                  fit: BoxFit.contain,
-                  fallback: Center(
-                    child: Text(_activeItem.emoji, style: const TextStyle(fontSize: 100)),
-                  ),
-                ),
-              ),
-
-            // Drawing Canvas Layer
-            GestureDetector(
-              onPanStart: (details) {
-                final point = details.localPosition;
-                final paint = Paint()
-                  ..color = _isEraser ? Colors.white : _selectedColor
-                  ..strokeWidth = _strokeWidth
-                  ..strokeCap = StrokeCap.round
-                  ..strokeJoin = StrokeJoin.round
-                  ..style = PaintingStyle.stroke;
-
-                setState(() {
-                  _currentStroke = [DrawingPoint(point: point, paint: paint)];
-                  _strokes.add(_currentStroke);
-                });
+                );
               },
-              onPanUpdate: (details) {
-                final point = details.localPosition;
-                final paint = Paint()
-                  ..color = _isEraser ? Colors.white : _selectedColor
-                  ..strokeWidth = _strokeWidth
-                  ..strokeCap = StrokeCap.round
-                  ..strokeJoin = StrokeJoin.round
-                  ..style = PaintingStyle.stroke;
-
-                setState(() {
-                  _currentStroke.add(DrawingPoint(point: point, paint: paint));
-                });
-              },
-              onPanEnd: (details) {
-                setState(() {
-                  _currentStroke = [];
-                });
-              },
-              child: CustomPaint(
-                painter: _ColoringPainter(strokes: _strokes),
-                size: Size.infinite,
-              ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildColorCircle(Color color, bool isSelected) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() {
-          _selectedColor = color;
-          _isEraser = false;
-        });
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: isSelected ? 38 : 30,
-        height: isSelected ? 38 : 30,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isSelected ? AppColors.textDark : Colors.grey.withValues(alpha: 0.35),
-            width: isSelected ? 3 : 1.5,
-          ),
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: color.withValues(alpha: 0.5),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -843,26 +825,141 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
   }
 }
 
-class _ColoringPainter extends CustomPainter {
-  final List<List<DrawingPoint?>> strokes;
+/// Nút bảng màu: vòng các đốm màu, chấm giữa là màu đang chọn (hoặc biểu tượng tẩy).
+class _PaletteButton extends StatelessWidget {
+  final Color selectedColor;
+  final bool isEraser;
+  final List<Color> palette;
+  final VoidCallback onTap;
 
-  _ColoringPainter({required this.strokes});
+  const _PaletteButton({
+    required this.selectedColor,
+    required this.isEraser,
+    required this.palette,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Chọn màu',
+      child: InkResponse(
+        onTap: onTap,
+        radius: 26,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: CustomPaint(
+            painter: _PaletteDotsPainter(
+              dots: palette.where((c) => c != const Color(0xFFFFFFFF)).take(8).toList(),
+              center: isEraser ? Colors.white : selectedColor,
+            ),
+            child: isEraser
+                ? const Center(child: Icon(Icons.cleaning_services_rounded, size: 14, color: AppColors.textLight))
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaletteDotsPainter extends CustomPainter {
+  final List<Color> dots;
+  final Color center;
+
+  _PaletteDotsPainter({required this.dots, required this.center});
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final stroke in strokes) {
-      for (int i = 0; i < stroke.length - 1; i++) {
-        final p1 = stroke[i];
-        final p2 = stroke[i + 1];
-        if (p1 != null && p2 != null) {
-          canvas.drawLine(p1.point, p2.point, p1.paint);
-        }
-      }
+    final c = size.center(Offset.zero);
+    final r = size.shortestSide / 2;
+    canvas.drawCircle(c, r - 1, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      c,
+      r - 1,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = Colors.grey.withValues(alpha: 0.35),
+    );
+    final ringR = r * 0.62;
+    final dotR = r * 0.18;
+    for (var i = 0; i < dots.length; i++) {
+      final angle = -math.pi / 2 + 2 * math.pi * i / dots.length;
+      canvas.drawCircle(c + Offset(math.cos(angle), math.sin(angle)) * ringR, dotR, Paint()..color = dots[i]);
     }
+    canvas.drawCircle(c, r * 0.3, Paint()..color = center);
+    canvas.drawCircle(
+      c,
+      r * 0.3,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..color = AppColors.textDark.withValues(alpha: 0.6),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _ColoringPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _PaletteDotsPainter old) => old.center != center || old.dots != dots;
+}
+
+class _ColoringPainter extends CustomPainter {
+  final List<_Stroke> strokes;
+  final ui.Image? outline;
+
+  _ColoringPainter({required this.strokes, required this.outline, required Listenable repaint})
+      : super(repaint: repaint);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.saveLayer(rect, Paint());
+
+    for (final stroke in strokes) {
+      if (stroke.points.isEmpty) continue;
+      final strokeWidth = stroke.width * size.width;
+      final paint = Paint()
+        ..color = stroke.isEraser ? Colors.transparent : stroke.color
+        ..blendMode = stroke.isEraser ? BlendMode.clear : BlendMode.srcOver
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..isAntiAlias = true;
+
+      final first = Offset(stroke.points.first.dx * size.width, stroke.points.first.dy * size.height);
+      if (stroke.points.length == 1) {
+        // Chạm 1 lần cũng để lại một chấm màu
+        canvas.drawCircle(first, strokeWidth / 2, paint..style = PaintingStyle.fill);
+        continue;
+      }
+      final path = Path()..moveTo(first.dx, first.dy);
+      for (var i = 1; i < stroke.points.length; i++) {
+        final p = stroke.points[i];
+        path.lineTo(p.dx * size.width, p.dy * size.height);
+      }
+      canvas.drawPath(path, paint..style = PaintingStyle.stroke);
+    }
+
+    // Tranh nét vẽ chồng lên bằng multiply: nền trắng của tranh "trong suốt", nét đen luôn hiện rõ
+    final img = outline;
+    if (img != null) {
+      paintImage(
+        canvas: canvas,
+        rect: rect,
+        image: img,
+        fit: BoxFit.contain,
+        blendMode: BlendMode.multiply,
+        filterQuality: FilterQuality.medium,
+      );
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _ColoringPainter oldDelegate) =>
+      oldDelegate.outline != outline || oldDelegate.strokes != strokes;
 }
 
 // Icon Cục Tẩy vẽ vector sắc nét hình khối thực tế

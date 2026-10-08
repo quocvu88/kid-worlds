@@ -95,6 +95,7 @@ class TopicStoreService extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    await ContentServerConfigService.instance.ready;
     final serverUrl = ContentServerConfigService.instance.currentServerUrl;
     try {
       final endpoint = Uri.parse('$serverUrl/api/packs');
@@ -126,12 +127,15 @@ class TopicStoreService extends ChangeNotifier {
   }
 
   Future<bool> downloadAndInstallPack(String packId) async {
-    final serverUrl = ContentServerConfigService.instance.currentServerUrl;
+    if (_downloadingProgress.containsKey(packId)) return false; // đang tải, tránh bấm 2 lần
     _downloadingProgress[packId] = 0.1;
     notifyListeners();
 
+    await ContentServerConfigService.instance.ready;
+    final serverUrl = ContentServerConfigService.instance.currentServerUrl;
+
     try {
-      final endpoint = Uri.parse('$serverUrl/api/packs/$packId/download');
+      final endpoint = Uri.parse('$serverUrl/api/packs/${Uri.encodeComponent(packId)}/download');
       _downloadingProgress[packId] = 0.4;
       notifyListeners();
 
@@ -190,6 +194,7 @@ class TopicStoreService extends ChangeNotifier {
           promptQuestionVi: it['prompt_question_vi'] as String?,
           promptQuestionEn: it['prompt_question_en'] as String?,
           actionHintVi: it['action_hint_vi'] as String?,
+          coloringOutlineUrl: it['coloring_outline_url'] as String?,
         );
       }).toList();
 
