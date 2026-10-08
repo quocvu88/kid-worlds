@@ -1,11 +1,10 @@
 # KIDS WORLD - CODING & UI/UX RULES
 
-## 1. MANDATORY RESPONSIVE DESIGN (PORTRAIT & LANDSCAPE)
-- Tất cả các màn hình, widget, dialog và popup khi thiết kế BẮT BUỘC phải thích ứng hoàn hảo cho cả **Màn hình Dọc (Portrait)** và **Màn hình Ngang (Landscape)**.
-- Khi xoay màn hình (orientation change):
-  - Chiều dọc: Lưới 2 cột hoặc danh sách cuộn dọc.
-  - Chiều ngang: Lưới 3-4 cột hoặc chia 2 nửa (Row: Trái / Phải) tận dụng chiều ngang màn hình.
-  - Tuyệt đối không để xảy ra lỗi RenderFlex overflow (bọc trong `SingleChildScrollView`, `Flexible`, `Expanded`).
+## 1. CHỈ HIỂN THỊ MÀN HÌNH NGANG (LANDSCAPE ONLY)
+- App khoá ở màn hình ngang (landscapeLeft/landscapeRight): `kAppOrientations` trong `lib/core/app_info.dart`, `android:screenOrientation="sensorLandscape"`, iOS Info.plist chỉ khai báo Landscape.
+- Mọi màn hình, widget, dialog, popup thiết kế cho chiều ngang: lưới 3-4 cột hoặc chia 2 nửa (Row: Trái / Phải).
+- Màn hình nào tạm đổi hướng (vd YouTube fullscreen) phải trả về `kAppOrientations` khi thoát.
+- Tuyệt đối không để xảy ra lỗi RenderFlex overflow (bọc trong `SingleChildScrollView`, `Flexible`, `Expanded`), kể cả trên điện thoại ngang thấp (~360dp chiều cao).
 
 ## 2. KIDS-APP-UIUX-DESIGNER STANDARDS
 - Touch target lớn: tối thiểu 48x48 dp, nút bấm chính 56–72 dp.
@@ -14,3 +13,8 @@
 - Hoạt ảnh nảy mượt mà (`flutter_animate`).
 - Parent Hub theo phong cách Bento Grid hiện đại.
 - Sleep Screen màu đêm êm dịu, mascot thở nhẹ.
+
+## 3. GIT COMMIT & WORKFLOW RULE
+- **TUYỆT ĐỐI KHÔNG tự động `git commit` hoặc `git push` khi người dùng CHƯA YÊU CẦU**.
+- Chỉ thực hiện commit/push khi người dùng đưa ra câu lệnh rõ ràng (ví dụ: *"commit code"*, *"commit các thay đổi"*, *"push lên repo"*).
+- Mọi thao tác sửa code, fix bug, bổ sung tính năng bình thường chỉ lưu file và kiểm tra với `flutter analyze`, không tự ý tạo commit.
