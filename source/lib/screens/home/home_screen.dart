@@ -42,17 +42,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  List<Topic> _getFilteredTopics(Child? activeChild) {
-    return _topics.where((t) {
-      if (_selectedCategory != 'all' && t.category != _selectedCategory) {
-        return false;
-      }
-      if (activeChild != null) {
-        final age = activeChild.age;
-        return age >= t.targetAgeMin && age <= t.targetAgeMax;
-      }
-      return true;
-    }).toList();
+  List<Topic> _getAgeTopics(Child? activeChild) {
+    if (activeChild == null) return _topics;
+    final age = activeChild.age;
+    return _topics.where((t) => age >= t.targetAgeMin && age <= t.targetAgeMax).toList();
   }
 
   void _onAvatarTapped() {
@@ -355,7 +348,13 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   Widget _buildTopicsBody(Child? activeChild) {
-    final filteredTopics = _getFilteredTopics(activeChild);
+    final ageTopics = _getAgeTopics(activeChild);
+    // Chỉ hiện danh mục đang có gói phù hợp tuổi bé → đổi danh mục không bao giờ ra màn trống
+    final usedCategories = ageTopics.map((t) => t.category).toSet();
+    final categories = _categories.where((c) => c.$1 == 'all' || usedCategories.contains(c.$1)).toList();
+    final selected = categories.any((c) => c.$1 == _selectedCategory) ? _selectedCategory : 'all';
+    final filteredTopics =
+        selected == 'all' ? ageTopics : ageTopics.where((t) => t.category == selected).toList();
 
     return SafeArea(
       top: false,
@@ -369,11 +368,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 shrinkWrap: true,
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _categories.length,
+                itemCount: categories.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, i) {
-                  final c = _categories[i];
-                  return _buildCategoryBubble(c.$1, c.$2, c.$3);
+                  final c = categories[i];
+                  return _buildCategoryBubble(c.$1, c.$2, c.$3, selected);
                 },
               ),
             ),
@@ -433,8 +432,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCategoryBubble(String key, String label, String emoji) {
-    final isSelected = _selectedCategory == key;
+  Widget _buildCategoryBubble(String key, String label, String emoji, String selected) {
+    final isSelected = selected == key;
     final color = key == 'all' ? AppColors.primary : _getCategoryColor(key);
 
     return GestureDetector(
@@ -452,9 +451,15 @@ class _HomeScreenState extends State<HomeScreen> {
           color: isSelected ? color : Colors.white,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: isSelected ? color : AppColors.border, width: 2),
-          boxShadow: isSelected
-              ? [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))]
-              : null,
+          // Luôn giữ 1 bóng cùng blurRadius, chỉ đổi màu: easeOutBack vượt quá 1.0
+          // nên lerp giữa bóng và null sẽ ra blurRadius âm → lỗi assertion.
+          boxShadow: [
+            BoxShadow(
+              color: isSelected ? color.withValues(alpha: 0.35) : Colors.transparent,
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

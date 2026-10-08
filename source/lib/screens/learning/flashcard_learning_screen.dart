@@ -37,7 +37,7 @@ class _FlashcardLearningScreenState extends State<FlashcardLearningScreen> {
   List<TopicItem> _items = [];
   bool _isLoading = true;
   int _currentIndex = 0;
-  bool _showRealImage = false;
+  bool _showRealImage = true; // Mặc định hiển thị ảnh thật (nếu có)
   bool _hasShownCompletionModal = false;
   bool _isSyncing = false;
 
@@ -148,7 +148,7 @@ class _FlashcardLearningScreenState extends State<FlashcardLearningScreen> {
     HapticFeedback.selectionClick();
     setState(() {
       _currentIndex = index;
-      _showRealImage = false;
+      _showRealImage = true;
     });
 
     if (index < _items.length) {
@@ -717,21 +717,32 @@ class _FlashcardLearningScreenState extends State<FlashcardLearningScreen> {
               ),
 
               // Gradient bóng mờ góc dưới trái (giúp text và 3 icon âm thanh luôn nổi bật)
+              // Chỉ phủ vừa vùng chữ, mờ dần cả lên trên lẫn sang phải để không che ảnh
               Positioned(
                 bottom: 0,
                 left: 0,
-                right: isLandscape ? 120 : 70,
-                height: 220,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.8),
-                        Colors.black.withValues(alpha: 0.4),
-                        Colors.transparent,
-                      ],
+                width: isLandscape ? 380 : 300,
+                height: isLandscape ? 150 : 170,
+                child: ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (rect) => const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [Colors.white, Colors.white, Colors.transparent],
+                    stops: [0.0, 0.55, 1.0],
+                  ).createShader(rect),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.55),
+                          Colors.black.withValues(alpha: 0.3),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.5, 1.0],
+                      ),
                     ),
                   ),
                 ),
