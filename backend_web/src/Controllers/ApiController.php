@@ -23,7 +23,12 @@ class ApiController {
         return $scheme . '://' . $host;
     }
 
-    private function resolveUrl(?string $url): string {
+    /**
+     * @param bool $keepRelative true: giữ đường dẫn file trên server dạng tương đối (/uploads/...)
+     *        để app tự ghép với domain đang cấu hình. Dùng cho gói tải về lưu vào SQLite của app,
+     *        tránh "khoá cứng" host (vd 10.0.2.2) vào dữ liệu khi sau này đổi máy chủ.
+     */
+    private function resolveUrl(?string $url, bool $keepRelative = false): string {
         if (empty($url)) return '';
         $clean = trim($url);
 
@@ -42,14 +47,15 @@ class ApiController {
         // Dynamically replace localhost / 127.0.0.1 with incoming request host
         if (preg_match('#^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?(/.*)?$#i', $clean, $m)) {
             $path = $m[1] ?? '';
-            return rtrim($this->getBaseUrl(), '/') . $path;
+            return $keepRelative ? $path : rtrim($this->getBaseUrl(), '/') . $path;
         }
 
         if (str_starts_with($clean, 'http://') || str_starts_with($clean, 'https://')) {
             return $clean;
         }
 
-        return rtrim($this->getBaseUrl(), '/') . '/' . ltrim($clean, '/');
+        $relative = '/' . ltrim($clean, '/');
+        return $keepRelative ? $relative : rtrim($this->getBaseUrl(), '/') . $relative;
     }
 
     public function info(): void {
@@ -163,7 +169,7 @@ class ApiController {
         $items = TopicItem::byPack($id);
         $formattedItems = array_map(function($item) {
             $rawImages = json_decode($item['images_json'] ?? '[]', true) ?: [];
-            $resolvedImages = array_map(fn($img) => $this->resolveUrl($img), $rawImages);
+            $resolvedImages = array_map(fn($img) => $this->resolveUrl($img, true), $rawImages);
 
             return [
                 'id' => $item['id'],
@@ -172,20 +178,20 @@ class ApiController {
                 'name_en' => $item['name_en'],
                 'description_vi' => $item['description_vi'] ?? '',
                 'description_en' => $item['description_en'] ?? '',
-                'pronounce_vi_url' => $this->resolveUrl($item['pronounce_vi_url']),
-                'pronounce_en_url' => $this->resolveUrl($item['pronounce_en_url']),
+                'pronounce_vi_url' => $this->resolveUrl($item['pronounce_vi_url'], true),
+                'pronounce_en_url' => $this->resolveUrl($item['pronounce_en_url'], true),
                 'images_json' => json_encode($resolvedImages, JSON_UNESCAPED_SLASHES),
                 'youtube_video_id' => $item['youtube_video_id'] ?? '',
                 'map_coordinates_json' => json_encode(['x' => (float)$item['map_x'], 'y' => (float)$item['map_y']]),
                 'phonics_en' => $item['phonics_en'] ?? '',
-                'real_image_url' => $this->resolveUrl($item['real_image_url'] ?? ''),
+                'real_image_url' => $this->resolveUrl($item['real_image_url'] ?? '', true),
                 'sfx_sound' => $item['sfx_sound'] ?? '',
                 'fun_fact_vi' => $item['fun_fact_vi'] ?? '',
                 'fun_fact_en' => $item['fun_fact_en'] ?? '',
                 'prompt_question_vi' => $item['prompt_question_vi'] ?? '',
                 'prompt_question_en' => $item['prompt_question_en'] ?? '',
                 'action_hint_vi' => $item['action_hint_vi'] ?? '',
-                'coloring_outline_url' => $this->resolveUrl($item['coloring_outline_url'] ?? '')
+                'coloring_outline_url' => $this->resolveUrl($item['coloring_outline_url'] ?? '', true)
             ];
         }, $items);
 
@@ -199,8 +205,8 @@ class ApiController {
                 'target_age_min' => (int)$pack['target_age_min'],
                 'target_age_max' => (int)$pack['target_age_max'],
                 'target_gender' => $pack['target_gender'],
-                'thumbnail_path' => $this->resolveUrl($pack['thumbnail_url']),
-                'background_path' => $this->resolveUrl($pack['background_url'] ?? ''),
+                'thumbnail_path' => $this->resolveUrl($pack['thumbnail_url'], true),
+                'background_path' => $this->resolveUrl($pack['background_url'] ?? '', true),
                 'theme_color' => $pack['theme_color'] ?? '#FF6584',
                 'version' => (int)$pack['version'],
                 'selected_games_json' => $pack['selected_games_json'] ?? '["coloring","memory_match"]',
