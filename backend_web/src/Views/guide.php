@@ -1,3 +1,5 @@
+<?php $pageTitle = 'Kết nối app'; ?>
+<div class="k-legacy">
 <div class="row justify-content-center">
     <div class="col-lg-10">
         <div class="card card-custom p-4 mb-4">
@@ -14,13 +16,13 @@
             <!-- Standard Specification Banner Callout -->
             <div class="p-3 mb-4 rounded-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" style="background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%); border: 1px solid #7dd3fc;">
                 <div class="d-flex align-items-center gap-3">
-                    <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background: #0284c7; color: #ffffff; border-radius: 10px;">
+                    <div class="d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; background: var(--primary); color: #ffffff; border-radius: 10px;">
                         <i class="bi bi-journal-check fs-5"></i>
                     </div>
                     <div>
                         <div class="d-flex align-items-center gap-2">
                             <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Tài Liệu Chuẩn Thiết Kế Bộ Học Phần (Multi-sensory Topic Standards)</h6>
-                            <span class="badge" style="background: #0284c7; color: #ffffff; font-size: 0.68rem; padding: 2px 7px;">Mới</span>
+                            <span class="badge" style="background: var(--primary); color: #ffffff; font-size: 0.68rem; padding: 2px 7px;">Mới</span>
                         </div>
                         <p class="text-secondary mb-0 small mt-0.5">
                             Quy chuẩn 4 trụ cột cơ bản (Background, Song ngữ, Hướng dẫn phụ huynh, Video YouTube) &amp; 6 tính năng đa giác quan mở rộng (SFX, Ảnh thực tế, Micro-interactions, Phonics, Bento Hints, Mini-game củng cố) kèm JSON Schema.
@@ -28,7 +30,7 @@
                     </div>
                 </div>
                 <div class="flex-shrink-0">
-                    <a href="/docs" class="btn btn-sm text-white fw-medium d-inline-flex align-items-center gap-1 shadow-sm px-3 py-2" style="background: #0284c7; border-radius: 8px; font-size: 0.825rem;">
+                    <a href="/docs" class="btn btn-sm text-white fw-medium d-inline-flex align-items-center gap-1 shadow-sm px-3 py-2" style="background: var(--primary); border-radius: 8px; font-size: 0.825rem;">
                         <i class="bi bi-book-half"></i> Xem Tiêu Chuẩn <i class="bi bi-arrow-right"></i>
                     </a>
                 </div>
@@ -210,4 +212,6 @@
             </div>
         </div>
     </div>
+</div>
+
 </div>

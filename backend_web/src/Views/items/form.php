@@ -1,277 +1,176 @@
-<div class="row justify-content-center">
-    <div class="col-lg-9">
-        <div class="card card-custom p-4">
-            <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-                <div class="d-flex align-items-center gap-2.5">
-                    <span class="d-inline-flex align-items-center justify-content-center" style="width: 34px; height: 34px; background: var(--kw-primary-light); border: 1px solid var(--kw-primary-border); border-radius: var(--kw-radius-sm); color: var(--kw-primary);">
-                        <i class="bi <?= $isEdit ? 'bi-pencil-square' : 'bi-plus-circle' ?> fs-5"></i>
-                    </span>
-                    <div>
-                        <h5 class="fw-semibold mb-0 text-dark"><?= htmlspecialchars($title) ?></h5>
-                        <small class="text-muted">Thuộc gói: <strong class="text-dark"><?= htmlspecialchars($pack['title_vi']) ?></strong> (<code><?= htmlspecialchars($pack['id']) ?></code>)</small>
-                    </div>
-                </div>
-                <a href="/packs/<?= urlencode($pack['id']) ?>/items" class="btn btn-kw-outline btn-sm">
-                    <i class="bi bi-arrow-left"></i> Quay Lại
-                </a>
-            </div>
+<?php
+$item = $item ?? null;
+$siblings = $siblings ?? [];
+$packEditUrl = '/packs/' . urlencode($pack['id']) . '/edit?tab=items';
+$pageTitle = $isEdit ? $item['name_vi'] : 'Thêm thẻ';
+$crumbs = [['Gói chủ đề', '/packs'], [$pack['title_vi'], $packEditUrl]];
 
-            <form method="POST" action="<?= $isEdit ? '/items/' . urlencode($item['id']) . '/update' : '/packs/' . urlencode($pack['id']) . '/items/store' ?>" enctype="multipart/form-data">
-                <div class="row g-3">
-                    <?php if (!$isEdit): ?>
-                        <div class="col-md-4">
-                            <label class="form-label">Mã Thẻ (ID) <span class="text-danger">*</span></label>
-                            <input type="text" name="id" class="form-control" placeholder="item_lion, item_apple..." required>
-                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Định danh duy nhất (vd: item_lion)</small>
-                        </div>
-                    <?php endif; ?>
+$position = 0;
+$prevItem = $nextItem = null;
+foreach ($siblings as $i => $sib) {
+    if ($isEdit && $sib['id'] === $item['id']) {
+        $position = $i + 1;
+        $prevItem = $siblings[$i - 1] ?? null;
+        $nextItem = $siblings[$i + 1] ?? null;
+    }
+}
 
-                    <div class="col-md-<?= $isEdit ? '6' : '4' ?>">
-                        <label class="form-label">Tên Tiếng Việt <span class="text-danger">*</span></label>
-                        <input type="text" name="name_vi" class="form-control" value="<?= htmlspecialchars($item['name_vi'] ?? '') ?>" placeholder="Sư Tử, Con Voi..." required>
-                    </div>
+$primaryImg = kw_first_image($item['images_json'] ?? '');
+$realImg = $item['real_image_url'] ?? '';
+$outlineImg = $item['coloring_outline_url'] ?? '';
 
-                    <div class="col-md-<?= $isEdit ? '6' : '4' ?>">
-                        <label class="form-label">Tên Tiếng Anh <span class="text-danger">*</span></label>
-                        <input type="text" name="name_en" class="form-control" value="<?= htmlspecialchars($item['name_en'] ?? '') ?>" placeholder="Lion, Elephant..." required>
-                    </div>
+/** Một ô ảnh: khung xem trước + nút chọn từ kho / tạo prompt AI. Giá trị nằm ở input ẩn, modal chọn ảnh ghi vào đó. */
+$imageSlot = function (string $label, string $name, string $inputId, string $previewId, string $value, string $style, bool $contain = false): string {
+    $has = kw_valid_image_url($value);
+    $fit = $contain ? 'object-fit:contain;background:#fff' : '';
+    return '<div class="k-image-slot" data-slot>'
+        . '<div class="k-label">' . $label . '</div>'
+        . '<div class="k-image-box ' . ($has ? '' : 'is-empty') . '" data-slot-box>'
+        . '<img id="' . $previewId . '" src="' . ($has ? kw_e($value) : '') . '" alt="" style="' . $fit . '" ' . ($has ? '' : 'hidden') . '>'
+        . '<span class="k-xs" data-slot-empty ' . ($has ? 'hidden' : '') . '>' . ($value !== '' && !$has ? 'Đường dẫn ảnh lỗi' : 'Chưa có ảnh') . '</span>'
+        . '</div>'
+        . '<input type="hidden" id="' . $inputId . '" name="' . $name . '" value="' . kw_e($value) . '" data-slot-input>'
+        . '<div style="display:flex;gap:6px">'
+        . '<button class="k-btn k-btn-outline k-btn-sm" type="button" style="flex:1" data-slot-pick="upload" data-style="' . $style . '">' . ($has ? 'Đổi ảnh' : 'Chọn ảnh') . '</button>'
+        . '<button class="k-btn k-btn-outline k-btn-sm k-btn-icon" type="button" data-slot-pick="ai_prompt" data-style="' . $style . '" aria-label="Tạo prompt ảnh bằng AI" title="Tạo prompt ảnh bằng AI"><i class="bi bi-stars"></i></button>'
+        . '</div></div>';
+};
 
-                    <div class="col-md-6">
-                        <label class="form-label">Mô Tả Tiếng Việt</label>
-                        <textarea name="description_vi" class="form-control" rows="2" placeholder="Sư tử dũng mãnh là vua của thảo nguyên xanh..."><?= htmlspecialchars($item['description_vi'] ?? '') ?></textarea>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">Mô Tả Tiếng Anh</label>
-                        <textarea name="description_en" class="form-control" rows="2" placeholder="The mighty lion is known as the king of the jungle..."><?= htmlspecialchars($item['description_en'] ?? '') ?></textarea>
-                    </div>
-
-                    <!-- Images Section -->
-                    <div class="col-12 p-3 bg-light rounded-3 border" style="border-color: var(--kw-border) !important;">
-                        <label class="form-label fw-semibold text-dark mb-1">
-                            <i class="bi bi-card-image text-primary me-1"></i> Hình Ảnh Minh Họa Thẻ (Flashcard 3D / Hoạt Họa)
-                        </label>
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-5">
-                                <label class="small text-muted mb-1" style="font-size: 0.75rem;">Tải trực tiếp từ máy (PNG, JPG, WebP):</label>
-                                <input type="file" name="image_file" class="form-control" accept="image/*">
-                            </div>
-                            <div class="col-md-7">
-                                <label class="small text-muted mb-1" style="font-size: 0.75rem;">Hoặc URL ảnh / Kho ảnh máy chủ / Prompt AI:</label>
-                                <?php 
-                                    $images = json_decode($item['images_json'] ?? '[]', true) ?: [];
-                                    $primaryImg = !empty($images) ? $images[0] : '';
-                                ?>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" id="itemFormImgInput" name="image_url" class="form-control text-truncate" value="<?= htmlspecialchars($primaryImg) ?>" placeholder="https://... hoặc /uploads/images/...">
-                                    <button type="button" class="btn btn-kw-primary" onclick="browseItemFormImg()">
-                                        <i class="bi bi-images me-1"></i> Upload / Prompt AI 3D
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-2.5 d-flex align-items-center gap-2 <?= empty($primaryImg) ? 'd-none' : '' ?>" id="itemFormImgPreviewWrap">
-                            <small class="text-muted" style="font-size: 0.75rem;">Ảnh minh họa hiện tại:</small>
-                            <img id="itemFormImgPreview" src="<?= htmlspecialchars($primaryImg) ?>" style="height: 52px; border-radius: var(--kw-radius-sm); border: 1px solid var(--kw-border);" alt="Card Image">
-                        </div>
-                    </div>
-
-                    <!-- Audio Section -->
-                    <div class="col-md-6">
-                        <div class="p-3 bg-light rounded-3 border h-100" style="border-color: var(--kw-border) !important;">
-                            <label class="form-label fw-semibold text-dark mb-1">
-                                🇻🇳 Âm Thanh Phát Âm Tiếng Việt
-                            </label>
-                            <input type="file" name="audio_vi_file" class="form-control mb-2" accept="audio/*">
-                            <input type="text" name="pronounce_vi_url" class="form-control" value="<?= htmlspecialchars($item['pronounce_vi_url'] ?? '') ?>" placeholder="Hoặc dán URL file .mp3 / để trống dùng TTS">
-                            <?php if (!empty($item['pronounce_vi_url'])): ?>
-                                <small class="text-muted d-block mt-1 font-monospace" style="font-size: 0.725rem;">File: <?= htmlspecialchars($item['pronounce_vi_url']) ?></small>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <div class="p-3 bg-light rounded-3 border h-100" style="border-color: var(--kw-border) !important;">
-                            <label class="form-label fw-semibold text-dark mb-1">
-                                🇺🇸 Âm Thanh Phát Âm Tiếng Anh
-                            </label>
-                            <input type="file" name="audio_en_file" class="form-control mb-2" accept="audio/*">
-                            <input type="text" name="pronounce_en_url" class="form-control" value="<?= htmlspecialchars($item['pronounce_en_url'] ?? '') ?>" placeholder="Hoặc dán URL file .mp3 / để trống dùng TTS">
-                            <?php if (!empty($item['pronounce_en_url'])): ?>
-                                <small class="text-muted d-block mt-1 font-monospace" style="font-size: 0.725rem;">File: <?= htmlspecialchars($item['pronounce_en_url']) ?></small>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <!-- Phonics & SFX -->
-                    <div class="col-md-6">
-                        <label class="form-label">
-                            <i class="bi bi-spellcheck text-purple me-1"></i> Phonics / Ngữ Âm Tiếng Anh
-                        </label>
-                        <input type="text" name="phonics_en" class="form-control" value="<?= htmlspecialchars($item['phonics_en'] ?? '') ?>" placeholder="L - /l/ - Lion, A - /æ/ - Apple...">
-                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Âm ngữ chuẩn giúp bé học đánh vần tự nhiên</small>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label">
-                            <i class="bi bi-soundwave text-success me-1"></i> Tiếng Kêu / Âm Thanh Thực Tế (SFX)
-                        </label>
-                        <input type="text" name="sfx_sound" class="form-control" value="<?= htmlspecialchars($item['sfx_sound'] ?? '') ?>" placeholder="Gừừừ... Roaaar!, Bíp bíp! Honk honk! hoặc URL file âm thanh">
-                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Tiếng động thực tế đặc trưng để bé nghe tương tác</small>
-                    </div>
-
-                    <!-- Real Life Photo Section -->
-                    <div class="col-12 p-3 bg-light rounded-3 border" style="border-color: var(--kw-border) !important;">
-                        <label class="form-label fw-semibold text-dark mb-1">
-                            <i class="bi bi-camera text-info me-1"></i> Ảnh Chụp Thực Tế Ngoài Đời (Real-life Photo - National Geographic)
-                        </label>
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-12">
-                                <div class="input-group input-group-sm">
-                                    <input type="text" id="itemFormRealImgInput" name="real_image_url" class="form-control text-truncate" value="<?= htmlspecialchars($item['real_image_url'] ?? '') ?>" placeholder="https://... hoặc /uploads/images/...">
-                                    <button type="button" class="btn btn-kw-subtle" onclick="browseRealImage()">
-                                        <i class="bi bi-camera me-1"></i> Upload / Prompt AI Ảnh Thật
-                                    </button>
-                                </div>
-                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Giúp bé chuyển đổi so sánh giữa hình 3D minh họa và ảnh chụp thực tế ngoài đời sống</small>
-                            </div>
-                        </div>
-                        <div class="mt-2.5 d-flex align-items-center gap-2 <?= empty($item['real_image_url']) ? 'd-none' : '' ?>" id="itemFormRealImgPreviewWrap">
-                            <small class="text-muted" style="font-size: 0.75rem;">Ảnh chụp thật hiện tại:</small>
-                            <img id="itemFormRealImgPreview" src="<?= htmlspecialchars($item['real_image_url'] ?? '') ?>" style="height: 52px; border-radius: var(--kw-radius-sm); border: 1px solid var(--kw-border);" alt="Real Image">
-                        </div>
-                    </div>
-
-                    <!-- Coloring Outline Section -->
-                    <div class="col-12 p-3 bg-light rounded-3 border" style="border-color: var(--kw-border) !important;">
-                        <label class="form-label fw-semibold text-dark mb-1">
-                            <i class="bi bi-brush text-warning me-1"></i> Tranh Nét Tô Màu Cho Game (Line Art / Coloring Outline)
-                        </label>
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-5">
-                                <label class="small text-muted mb-1" style="font-size: 0.75rem;">Tải tranh vẽ nét từ máy (PNG/JPG đen trắng):</label>
-                                <input type="file" name="coloring_outline_file" class="form-control" accept="image/*">
-                            </div>
-                            <div class="col-md-7">
-                                <label class="small text-muted mb-1" style="font-size: 0.75rem;">Hoặc URL ảnh / Kho ảnh nét AI:</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" id="itemFormOutlineInput" name="coloring_outline_url" class="form-control text-truncate" value="<?= htmlspecialchars($item['coloring_outline_url'] ?? '') ?>" placeholder="https://... hoặc /uploads/images/...">
-                                    <button type="button" class="btn btn-kw-subtle" onclick="browseColoringOutline()">
-                                        <i class="bi bi-palette me-1"></i> Kho Tranh Nét
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-2.5 d-flex align-items-center gap-2 <?= empty($item['coloring_outline_url']) ? 'd-none' : '' ?>" id="itemFormOutlinePreviewWrap">
-                            <small class="text-muted" style="font-size: 0.75rem;">Tranh nét hiện tại:</small>
-                            <img id="itemFormOutlinePreview" src="<?= htmlspecialchars($item['coloring_outline_url'] ?? '') ?>" style="height: 52px; border-radius: var(--kw-radius-sm); border: 1px solid var(--kw-border); background: white; padding: 2px;" alt="Coloring Outline">
-                        </div>
-                    </div>
-
-                    <!-- Parent Guide Coaching Section -->
-                    <div class="col-12 p-3 rounded-3 border" style="background: #FFFBEB; border-color: #FDE68A !important;">
-                        <h6 class="fw-bold text-dark mb-3">
-                            <i class="bi bi-people-fill text-warning me-1"></i> Góc Cha Mẹ & Bé Khám Phá (Parent Coaching Guide)
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold text-dark" style="font-size: 0.85rem;">💡 Sự Thật Kỳ Thú (Fun Fact)</label>
-                                <textarea name="fun_fact_vi" class="form-control" rows="2" placeholder="Sư tử đực có bờm xù rất oai phong..."><?= htmlspecialchars($item['fun_fact_vi'] ?? '') ?></textarea>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold text-dark" style="font-size: 0.85rem;">❓ Cha Mẹ Đố Bé (Prompt Question)</label>
-                                <textarea name="prompt_question_vi" class="form-control" rows="2" placeholder="Đố con biết chú sư tử ngủ bao nhiêu tiếng một ngày?..."><?= htmlspecialchars($item['prompt_question_vi'] ?? '') ?></textarea>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold text-dark" style="font-size: 0.85rem;">🤸 Cùng Bé Vận Động (Action Hint)</label>
-                                <textarea name="action_hint_vi" class="form-control" rows="2" placeholder="Mẹ và bé hãy cùng xòe móng vuốt và gầm vang nhà nào!..."><?= htmlspecialchars($item['action_hint_vi'] ?? '') ?></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- YouTube Video ID -->
-                    <div class="col-md-6">
-                        <label class="form-label">
-                            <i class="bi bi-youtube text-danger me-1"></i> Link Video YouTube Khám Phá
-                        </label>
-                        <input type="text" name="youtube_video_id" class="form-control" value="<?= htmlspecialchars($item['youtube_video_id'] ?? '') ?>" placeholder="https://www.youtube.com/watch?v=... hoặc Video ID">
-                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Nhập URL hoặc Video ID 11 ký tự của YouTube</small>
-                    </div>
-
-                    <!-- Map Coordinates -->
-                    <div class="col-md-3">
-                        <label class="form-label">Tọa độ Bản đồ X</label>
-                        <input type="number" step="10" name="map_x" class="form-control" value="<?= $item['map_x'] ?? 100 ?>">
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label">Tọa độ Bản đồ Y</label>
-                        <input type="number" step="10" name="map_y" class="form-control" value="<?= $item['map_y'] ?? 100 ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label class="form-label">Thứ Tự Sắp Xếp</label>
-                        <input type="number" name="sort_order" class="form-control" value="<?= $item['sort_order'] ?? 0 ?>">
-                    </div>
-
-                    <div class="col-12 mt-4 pt-3 border-top d-flex justify-content-end gap-2">
-                        <a href="/packs/<?= urlencode($pack['id']) ?>/items" class="btn btn-kw-outline">Hủy Bỏ</a>
-                        <button type="submit" class="btn btn-kw-primary px-4">
-                            <i class="bi bi-check2"></i> <?= $isEdit ? 'Lưu Thay Đổi' : 'Thêm Thẻ Học' ?>
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
+ob_start(); ?>
+<div class="k-savebar">
+    <?php if ($isEdit): ?>
+        <?php if ($prevItem): ?><a class="k-btn k-btn-ghost k-sm-icon" href="/items/<?= urlencode($prevItem['id']) ?>/edit" aria-label="Thẻ trước"><i class="bi bi-chevron-left"></i><span class="k-btn-label">Thẻ trước</span></a><?php endif; ?>
+        <?php if ($nextItem): ?><a class="k-btn k-btn-ghost k-sm-icon" href="/items/<?= urlencode($nextItem['id']) ?>/edit" aria-label="Thẻ sau"><span class="k-btn-label">Thẻ sau</span><i class="bi bi-chevron-right"></i></a><?php endif; ?>
+    <?php endif; ?>
+    <div style="margin-left:auto;display:flex;gap:8px">
+        <a class="k-btn k-btn-outline" href="<?= $packEditUrl ?>">Huỷ</a>
+        <button class="k-btn k-btn-primary" type="submit" form="itemForm"><?= $isEdit ? 'Lưu thẻ' : 'Thêm thẻ' ?></button>
     </div>
 </div>
+<?php $kwAfterMain = ob_get_clean(); ?>
+
+<div class="k-page-head">
+    <div class="k-page-head-text">
+        <h1><?= $isEdit ? kw_e($item['name_vi']) : 'Thêm thẻ' ?></h1>
+        <div class="k-meta">
+            <?php if ($isEdit): ?>
+                <span><?= kw_e($item['name_en']) ?></span><span class="k-mono"><?= kw_e($item['id']) ?></span><?php if ($position): ?><span>Thẻ <?= $position ?> / <?= count($siblings) ?></span><?php endif; ?>
+            <?php else: ?>
+                <span>Vào gói <?= kw_e($pack['title_vi']) ?></span>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php if ($isEdit): ?>
+        <div class="k-page-head-actions"><a class="k-btn k-btn-danger" href="/items/<?= urlencode($item['id']) ?>/delete" onclick="return confirm('Xoá thẻ «<?= kw_e(addslashes($item['name_vi'])) ?>»? Không hoàn tác được.');"><i class="bi bi-trash3"></i>Xoá thẻ</a></div>
+    <?php endif; ?>
+</div>
+
+<form id="itemForm" method="POST" action="<?= $isEdit ? '/items/' . urlencode($item['id']) . '/update' : '/packs/' . urlencode($pack['id']) . '/items/store' ?>" enctype="multipart/form-data">
+<div class="k-split">
+    <div class="k-stack">
+        <section class="k-card">
+            <div class="k-card-head"><h2>Tên và mô tả</h2></div>
+            <div class="k-card-body" style="display:grid;gap:16px">
+                <?php if (!$isEdit): ?>
+                    <div class="k-field"><label class="k-label" for="fItemId">Mã thẻ <span class="k-req">*</span></label><input id="fItemId" class="k-input k-mono" type="text" name="id" placeholder="item_lion" required><span class="k-hint">Viết liền không dấu, vd item_lion</span></div>
+                <?php endif; ?>
+                <div class="k-grid-2">
+                    <div class="k-field"><label class="k-label" for="fNameVi">Tên tiếng Việt <span class="k-req">*</span></label><input id="fNameVi" class="k-input" type="text" name="name_vi" value="<?= kw_e($item['name_vi'] ?? '') ?>" placeholder="Sư Tử" required></div>
+                    <div class="k-field"><label class="k-label" for="fNameEn">Tên tiếng Anh <span class="k-req">*</span></label><input id="fNameEn" class="k-input" type="text" name="name_en" value="<?= kw_e($item['name_en'] ?? '') ?>" placeholder="Lion" required></div>
+                </div>
+                <div class="k-grid-2">
+                    <div class="k-field"><label class="k-label" for="fDescVi">Mô tả tiếng Việt</label><textarea id="fDescVi" class="k-textarea" name="description_vi" placeholder="Sư tử dũng mãnh là vua của thảo nguyên"><?= kw_e($item['description_vi'] ?? '') ?></textarea></div>
+                    <div class="k-field"><label class="k-label" for="fDescEn">Mô tả tiếng Anh</label><textarea id="fDescEn" class="k-textarea" name="description_en" placeholder="The mighty lion is the king of the savanna"><?= kw_e($item['description_en'] ?? '') ?></textarea></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="k-card">
+            <div class="k-card-head"><h2>Phát âm và âm thanh</h2></div>
+            <div class="k-card-body" style="display:grid;gap:16px">
+                <div class="k-grid-2">
+                    <div class="k-field"><label class="k-label" for="fPhonics">Phiên âm tiếng Anh</label><input id="fPhonics" class="k-input" type="text" name="phonics_en" value="<?= kw_e($item['phonics_en'] ?? '') ?>" placeholder="/ˈlaɪən/"></div>
+                    <div class="k-field"><label class="k-label" for="fSfx">Tiếng kêu</label><input id="fSfx" class="k-input" type="text" name="sfx_sound" value="<?= kw_e($item['sfx_sound'] ?? '') ?>" placeholder="Gừ gừ... Roar! hoặc URL tệp âm thanh"></div>
+                </div>
+                <div class="k-grid-2">
+                    <div class="k-field"><label class="k-label" for="fAudioVi">Phát âm tiếng Việt</label>
+                        <input id="fAudioVi" class="k-input" type="text" name="pronounce_vi_url" value="<?= kw_e($item['pronounce_vi_url'] ?? '') ?>" placeholder="URL tệp .mp3, để trống thì đọc tự động">
+                        <input class="k-file" type="file" name="audio_vi_file" accept="audio/*" aria-label="Tải tệp phát âm tiếng Việt từ máy"></div>
+                    <div class="k-field"><label class="k-label" for="fAudioEn">Phát âm tiếng Anh</label>
+                        <input id="fAudioEn" class="k-input" type="text" name="pronounce_en_url" value="<?= kw_e($item['pronounce_en_url'] ?? '') ?>" placeholder="URL tệp .mp3, để trống thì đọc tự động">
+                        <input class="k-file" type="file" name="audio_en_file" accept="audio/*" aria-label="Tải tệp phát âm tiếng Anh từ máy"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="k-card">
+            <div class="k-card-head"><h2>Cùng bé tương tác</h2></div>
+            <div class="k-card-body" style="display:grid;gap:16px">
+                <div class="k-field"><label class="k-label" for="fFact">Sự thật thú vị</label><textarea id="fFact" class="k-textarea" name="fun_fact_vi" placeholder="Sư tử đực có bờm xù rất oai phong"><?= kw_e($item['fun_fact_vi'] ?? '') ?></textarea></div>
+                <div class="k-field"><label class="k-label" for="fQuestion">Câu hỏi cha mẹ đố bé</label><input id="fQuestion" class="k-input" type="text" name="prompt_question_vi" value="<?= kw_e($item['prompt_question_vi'] ?? '') ?>" placeholder="Đố con biết sư tử ngủ bao nhiêu tiếng một ngày?"></div>
+                <div class="k-field"><label class="k-label" for="fAction">Gợi ý vận động</label><input id="fAction" class="k-input" type="text" name="action_hint_vi" value="<?= kw_e($item['action_hint_vi'] ?? '') ?>" placeholder="Cùng xoè móng vuốt và gầm vang nhà nào!"></div>
+            </div>
+        </section>
+
+        <section class="k-card">
+            <div class="k-card-head"><h2>Video và vị trí</h2></div>
+            <div class="k-card-body" style="display:grid;gap:16px">
+                <div class="k-field"><label class="k-label" for="fYoutube">Video YouTube</label><input id="fYoutube" class="k-input" type="text" name="youtube_video_id" value="<?= kw_e($item['youtube_video_id'] ?? '') ?>" placeholder="Link YouTube hoặc mã video 11 ký tự"></div>
+                <div class="k-grid-3">
+                    <div class="k-field"><label class="k-label" for="fMapX">Toạ độ X</label><input id="fMapX" class="k-input k-num" type="number" step="10" name="map_x" value="<?= kw_e($item['map_x'] ?? 100) ?>"></div>
+                    <div class="k-field"><label class="k-label" for="fMapY">Toạ độ Y</label><input id="fMapY" class="k-input k-num" type="number" step="10" name="map_y" value="<?= kw_e($item['map_y'] ?? 100) ?>"></div>
+                    <div class="k-field"><label class="k-label" for="fSort">Thứ tự</label><input id="fSort" class="k-input k-num" type="number" name="sort_order" value="<?= kw_e($item['sort_order'] ?? 0) ?>"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="k-sticky">
+        <section class="k-card">
+            <div class="k-card-head"><h2>Hình ảnh</h2></div>
+            <div class="k-card-body k-image-trio" style="display:grid;gap:16px">
+                <?= $imageSlot('Ảnh 3D minh hoạ', 'image_url', 'itemFormImgInput', 'itemFormImgPreview', $primaryImg, 'pixar_3d') ?>
+                <?= $imageSlot('Ảnh thật', 'real_image_url', 'itemFormRealImgInput', 'itemFormRealImgPreview', $realImg, 'real_photo') ?>
+                <?= $imageSlot('Tranh tô màu', 'coloring_outline_url', 'itemFormOutlineInput', 'itemFormOutlinePreview', $outlineImg, 'coloring_outline', true) ?>
+            </div>
+        </section>
+    </div>
+</div>
+</form>
 
 <script>
-    function browseItemFormImg() {
-        const q = (document.querySelector('input[name="name_vi"]')?.value || '').trim() 
-               || (document.querySelector('input[name="name_en"]')?.value || '').trim();
-        openImageBrowser({
-            inputId: 'itemFormImgInput',
-            previewId: 'itemFormImgPreview',
-            query: q,
-            defaultTab: 'upload',
-            preferredStyle: 'pixar_3d',
-            callback: function(url) {
-                const wrap = document.getElementById('itemFormImgPreviewWrap');
-                if (wrap) wrap.classList.remove('d-none');
-            }
-        });
-    }
+    // Ô ảnh: modal chọn ảnh ghi URL vào input ẩn rồi phát sự kiện change, ô tự vẽ lại theo giá trị mới.
+    document.querySelectorAll('[data-slot]').forEach(slot => {
+        const input = slot.querySelector('[data-slot-input]');
+        const img = slot.querySelector('img');
+        const empty = slot.querySelector('[data-slot-empty]');
+        const box = slot.querySelector('[data-slot-box]');
+        const pickButton = slot.querySelector('[data-slot-pick="upload"]');
 
-    function browseRealImage() {
-        const q = (document.querySelector('input[name="name_vi"]')?.value || '').trim() 
-               || (document.querySelector('input[name="name_en"]')?.value || '').trim();
-        openImageBrowser({
-            inputId: 'itemFormRealImgInput',
-            previewId: 'itemFormRealImgPreview',
-            query: q,
-            defaultTab: 'ai_prompt',
-            preferredStyle: 'real_photo',
-            callback: function(url) {
-                const wrap = document.getElementById('itemFormRealImgPreviewWrap');
-                if (wrap) wrap.classList.remove('d-none');
-            }
-        });
-    }
+        function render() {
+            const url = input.value.trim();
+            const valid = /^https?:\/\//i.test(url) || url.startsWith('/') || url.startsWith('data:');
+            img.hidden = !valid;
+            if (valid) img.src = url;
+            empty.hidden = valid;
+            empty.textContent = url && !valid ? 'Đường dẫn ảnh lỗi' : 'Chưa có ảnh';
+            box.classList.toggle('is-empty', !valid);
+            pickButton.textContent = valid ? 'Đổi ảnh' : 'Chọn ảnh';
+        }
 
-    function browseColoringOutline() {
-        const q = (document.querySelector('input[name="name_en"]')?.value || '').trim() 
-               || (document.querySelector('input[name="name_vi"]')?.value || '').trim();
-        openImageBrowser({
-            inputId: 'itemFormOutlineInput',
-            previewId: 'itemFormOutlinePreview',
-            query: q,
-            defaultTab: 'ai_prompt',
-            preferredStyle: 'coloring_outline',
-            callback: function(url) {
-                const wrap = document.getElementById('itemFormOutlinePreviewWrap');
-                if (wrap) wrap.classList.remove('d-none');
-            }
-        });
-    }
+        input.addEventListener('change', render);
+        slot.querySelectorAll('[data-slot-pick]').forEach(button => button.addEventListener('click', () => {
+            // Prompt ảnh tiếng Anh: lấy đúng tên tiếng Anh của thẻ này
+            const query = (document.getElementById('fNameEn')?.value || '').trim()
+                       || (document.getElementById('fNameVi')?.value || '').trim();
+            openImageBrowser({
+                inputId: input.id,
+                previewId: img.id,
+                query: query,
+                defaultTab: button.dataset.slotPick,
+                preferredStyle: button.dataset.style,
+                callback: render
+            });
+        }));
+    });
 </script>

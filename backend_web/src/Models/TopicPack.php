@@ -9,7 +9,11 @@ class TopicPack {
     public static function all(bool $activeOnly = false): array {
         $db = Database::getConnection();
         $sql = "
-            SELECT p.*, COUNT(i.id) as item_count 
+            SELECT p.*, COUNT(i.id) as item_count,
+                SUM(CASE WHEN i.id IS NOT NULL AND COALESCE(i.images_json, '') IN ('', '[]') THEN 1 ELSE 0 END) as missing_image,
+                SUM(CASE WHEN i.id IS NOT NULL AND COALESCE(i.real_image_url, '') = '' THEN 1 ELSE 0 END) as missing_real,
+                SUM(CASE WHEN i.id IS NOT NULL AND COALESCE(i.coloring_outline_url, '') = '' THEN 1 ELSE 0 END) as missing_line,
+                SUM(CASE WHEN i.id IS NOT NULL AND COALESCE(i.fun_fact_vi, '') = '' THEN 1 ELSE 0 END) as missing_fact 
             FROM topic_packs p
             LEFT JOIN topic_items i ON p.id = i.pack_id
         ";
@@ -129,6 +133,26 @@ class TopicPack {
             'total_packs' => (int)$packCount,
             'total_items' => (int)$itemCount,
             'total_size_mb' => round((float)$totalSize, 1),
+        ];
+    }
+
+    /** Số thẻ còn thiếu nội dung, cho màn Tổng quan của CMS (không trả qua API). */
+    public static function contentGaps(): array {
+        $db = Database::getConnection();
+        $missing = $db->query("
+            SELECT
+                SUM(CASE WHEN COALESCE(real_image_url, '') = '' THEN 1 ELSE 0 END) as missing_real,
+                SUM(CASE WHEN COALESCE(coloring_outline_url, '') = '' THEN 1 ELSE 0 END) as missing_line,
+                COUNT(DISTINCT CASE WHEN COALESCE(real_image_url, '') = '' THEN pack_id END) as packs_missing_real
+            FROM topic_items
+        ")->fetch();
+        $emptyPacks = $db->query("SELECT COUNT(*) FROM topic_packs p WHERE NOT EXISTS (SELECT 1 FROM topic_items i WHERE i.pack_id = p.id)")->fetchColumn();
+
+        return [
+            'missing_real' => (int)($missing['missing_real'] ?? 0),
+            'missing_line' => (int)($missing['missing_line'] ?? 0),
+            'packs_missing_real' => (int)($missing['packs_missing_real'] ?? 0),
+            'empty_packs' => (int)$emptyPacks,
         ];
     }
 }

@@ -1,3 +1,5 @@
+<?php $pageTitle = 'Đặc tả dữ liệu'; ?>
+<div class="k-legacy">
 <div class="row justify-content-center">
     <div class="col-lg-10">
         <!-- Breadcrumb & Top Bar -->
@@ -312,3 +314,5 @@ function copySchemaJson() {
     });
 }
 </script>
+
+</div>

@@ -65,3 +65,11 @@ Thumbs.db
 *.bak
 *.swp
 *~
+
+# Release binaries
+*.apk
+
+
+# Backend CMS: API key AI va tai khoan quan tri (khong dua len git)
+backend_web/data/secrets.json
+backend_web/data/secrets.json.tmp

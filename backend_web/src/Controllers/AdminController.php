@@ -5,6 +5,8 @@ namespace KidsWorld\Backend\Controllers;
 use KidsWorld\Backend\Models\TopicPack;
 use KidsWorld\Backend\Models\TopicItem;
 use KidsWorld\Backend\Services\AiService;
+use KidsWorld\Backend\Services\Auth;
+use KidsWorld\Backend\Services\Settings;
 
 class AdminController {
     private function render(string $view, array $data = []): void {
@@ -17,6 +19,28 @@ class AdminController {
     private function redirect(string $url): void {
         header("Location: $url");
         exit;
+    }
+
+    /**
+     * Sinh ID duy nhất từ tiền tố + tên (chỉ a-z0-9_). Nếu trùng thì thêm hậu tố _2, _3...
+     * Tránh lỗi UNIQUE constraint (HTTP 500) khi tạo gói/thẻ trùng tên.
+     */
+    private function makeUniqueId(string $prefix, string $requested, string $name, callable $exists): string {
+        $base = strtolower(trim($requested));
+        if ($base === '') {
+            $slug = preg_replace('/[^a-z0-9_]+/', '_', strtolower(trim($name)));
+            $slug = trim(preg_replace('/_+/', '_', $slug), '_');
+            $base = $prefix . ($slug !== '' ? $slug : substr(md5(uniqid('', true)), 0, 8));
+        } else {
+            $base = preg_replace('/[^a-z0-9_\-]/', '_', $base);
+        }
+
+        $id = $base;
+        $n = 2;
+        while ($exists($id)) {
+            $id = $base . '_' . $n++;
+        }
+        return $id;
     }
 
     private function handleFileUpload(string $fieldName, string $folder): ?string {
@@ -54,11 +78,21 @@ class AdminController {
         $stats = TopicPack::stats();
         $recentPacks = TopicPack::all();
 
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+            || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+        $protocol = $isHttps ? 'https://' : 'http://';
+        $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
+        $serverUrl = $protocol . $host;
+
         $this->render('dashboard', [
             'title' => 'Bảng Điều Khiển Quản Trị - Kids World',
             'stats' => $stats,
+            'gaps' => TopicPack::contentGaps(),
             'packs' => $recentPacks,
             'localIp' => '192.168.2.6',
+            'serverUrl' => $serverUrl,
+            'currentHost' => $host,
         ]);
     }
 
@@ -80,10 +114,7 @@ class AdminController {
     }
 
     public function storePack(): void {
-        $id = trim($_POST['id'] ?? '');
-        if (empty($id)) {
-            $id = 'topic_' . preg_replace('/[^a-z0-9_]/', '', strtolower($_POST['title_en'] ?? uniqid()));
-        }
+        $id = $this->makeUniqueId('topic_', $_POST['id'] ?? '', $_POST['title_en'] ?? '', fn($x) => TopicPack::find($x) !== null);
 
         $uploadedThumbnail = $this->handleFileUpload('thumbnail_file', 'images');
         $thumbnailUrl = $uploadedThumbnail ?: trim($_POST['thumbnail_url'] ?? '');
@@ -232,10 +263,7 @@ class AdminController {
             $this->redirect('/packs');
         }
 
-        $id = trim($_POST['id'] ?? '');
-        if (empty($id)) {
-            $id = 'item_' . preg_replace('/[^a-z0-9_]/', '', strtolower($_POST['name_en'] ?? uniqid()));
-        }
+        $id = $this->makeUniqueId('item_', $_POST['id'] ?? '', $_POST['name_en'] ?? '', fn($x) => TopicItem::find($x) !== null);
 
         $uploadedImage = $this->handleFileUpload('image_file', 'images');
         $imageUrl = $uploadedImage ?: trim($_POST['image_url'] ?? '');
@@ -290,6 +318,7 @@ class AdminController {
             'title' => 'Sửa Thẻ: ' . $item['name_vi'],
             'pack' => $pack,
             'item' => $item,
+            'siblings' => TopicItem::byPack($item['pack_id']),
             'isEdit' => true
         ]);
     }
@@ -374,7 +403,71 @@ class AdminController {
     public function aiGenerator(): void {
         $this->render('ai/generator', [
             'title' => 'Khởi Tạo Bộ Nội Dung Tự Động Bằng AI - Kids World CMS',
+            'hasAiKey' => Settings::geminiApiKey() !== '',
+            'aiModel' => Settings::geminiModel(),
         ]);
+    }
+
+    public function settings(?string $error = null): void {
+        $fileKey = trim((string)Settings::get('gemini_api_key', ''));
+        $envKey = trim((string)(getenv('GEMINI_API_KEY') ?: ''));
+        $this->render('settings', [
+            'title' => 'Cài đặt',
+            'error' => $error,
+            'csrf' => Auth::csrfToken(),
+            'currentUser' => Auth::user(),
+            'keySource' => $fileKey !== '' ? 'file' : ($envKey !== '' ? 'env' : 'none'),
+            'maskedKey' => Settings::maskKey($fileKey !== '' ? $fileKey : $envKey),
+            'model' => Settings::geminiModel(),
+        ]);
+    }
+
+    public function saveSettings(): void {
+        if (!Auth::checkCsrf()) {
+            $this->settings('Phiên làm việc đã hết hạn, vui lòng thử lại.');
+        }
+        $action = $_POST['action'] ?? '';
+
+        if ($action === 'save_ai') {
+            $key = trim((string)($_POST['gemini_api_key'] ?? ''));
+            $model = trim((string)($_POST['gemini_model'] ?? ''));
+            if ($key !== '' && !str_starts_with($key, 'AIza')) {
+                $this->settings('API key Gemini phải bắt đầu bằng AIza.');
+            }
+            if ($model !== '' && !preg_match('/^[a-zA-Z0-9._-]+$/', $model)) {
+                $this->settings('Tên model chỉ gồm chữ, số, dấu chấm, gạch ngang.');
+            }
+            $values = ['gemini_model' => $model !== '' ? $model : null];
+            if ($key !== '') {
+                $values['gemini_api_key'] = $key; // để trống thì giữ key đang lưu
+            }
+            Settings::save($values);
+            $this->redirect('/settings?saved=ai');
+        }
+
+        if ($action === 'clear_key') {
+            Settings::save(['gemini_api_key' => null]);
+            $this->redirect('/settings?saved=key_cleared');
+        }
+
+        if ($action === 'change_password') {
+            $username = Auth::user();
+            $current = (string)($_POST['current_password'] ?? '');
+            $new = (string)($_POST['new_password'] ?? '');
+            $confirm = (string)($_POST['new_password_confirm'] ?? '');
+            $hash = Auth::users()[$username]['password_hash'] ?? '';
+            if (!password_verify($current, $hash)) {
+                $this->settings('Mật khẩu hiện tại không đúng.');
+            }
+            $error = Auth::validateCredentials($username, $new) ?? ($new !== $confirm ? 'Hai lần nhập mật khẩu mới không khớp.' : null);
+            if ($error) {
+                $this->settings($error);
+            }
+            Auth::setPassword($username, $new);
+            $this->redirect('/settings?saved=password');
+        }
+
+        $this->redirect('/settings');
     }
 
     public function apiGenerateAi(): void {
@@ -385,10 +478,9 @@ class AdminController {
         $prompt = trim($input['prompt'] ?? '');
         $count = (int)($input['count'] ?? 6);
         $targetAge = trim($input['target_age'] ?? '3-8');
-        $apiKey = trim($input['api_key'] ?? '');
-
         try {
-            $data = AiService::generate($prompt, $count, $targetAge, $apiKey);
+            // Key chỉ lấy ở máy chủ (trang Cài đặt hoặc GEMINI_API_KEY), không nhận từ trình duyệt
+            $data = AiService::generate($prompt, $count, $targetAge);
             echo json_encode(['status' => 'success', 'data' => $data]);
         } catch (\Throwable $e) {
             http_response_code(500);
@@ -412,10 +504,7 @@ class AdminController {
         $itemsData = $data['items'];
 
         // Ensure unique ID if already exists
-        $existing = TopicPack::find($packData['id']);
-        if ($existing) {
-            $packData['id'] .= '_' . substr(md5(uniqid()), 0, 4);
-        }
+        $packData['id'] = $this->makeUniqueId('topic_', $packData['id'] ?? '', $packData['title_en'] ?? '', fn($x) => TopicPack::find($x) !== null);
 
         $packData['background_url'] = trim($packData['background_url'] ?? '');
         $packData['theme_color'] = trim($packData['theme_color'] ?? '#10b981');
@@ -434,12 +523,7 @@ class AdminController {
             }
 
             $images = is_array($it['images'] ?? null) ? $it['images'] : [($it['image'] ?? '')];
-            $itemId = (!empty($it['id'])) ? $it['id'] : ('item_' . substr(md5(uniqid()), 0, 8));
-            
-            // Check item uniqueness
-            if (TopicItem::find($itemId)) {
-                $itemId .= '_' . substr(md5(uniqid()), 0, 4);
-            }
+            $itemId = $this->makeUniqueId('item_', $it['id'] ?? '', $it['name_en'] ?? '', fn($x) => TopicItem::find($x) !== null);
 
             $itemPayload = [
                 'id' => $itemId,
@@ -462,6 +546,7 @@ class AdminController {
                 'prompt_question_vi' => trim($it['prompt_question_vi'] ?? ''),
                 'prompt_question_en' => trim($it['prompt_question_en'] ?? ''),
                 'action_hint_vi' => trim($it['action_hint_vi'] ?? ''),
+                'coloring_outline_url' => trim($it['coloring_outline_url'] ?? ''),
                 'sort_order' => (int)($it['sort_order'] ?? ($savedItems + 1)),
             ];
 
@@ -660,8 +745,8 @@ class AdminController {
         $body = json_decode(file_get_contents('php://input'), true);
         $keyword = trim($body['keyword'] ?? $_POST['keyword'] ?? $_GET['keyword'] ?? 'Hà Mã');
         $context = trim($body['context'] ?? $_POST['context'] ?? $_GET['context'] ?? '');
-        $aspectRatio = trim($body['aspect_ratio'] ?? $_POST['aspect_ratio'] ?? $_GET['aspect_ratio'] ?? '1:1');
-        $resolution = trim($body['resolution'] ?? $_POST['resolution'] ?? $_GET['resolution'] ?? '1024x1024');
+        $aspectRatio = trim($body['aspect_ratio'] ?? $_POST['aspect_ratio'] ?? $_GET['aspect_ratio'] ?? '16:9');
+        $resolution = trim($body['resolution'] ?? $_POST['resolution'] ?? $_GET['resolution'] ?? '1920x1080');
 
         $result = AiService::generateImagePrompts($keyword, $context, $aspectRatio, $resolution);
         echo json_encode([

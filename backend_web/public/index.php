@@ -20,6 +20,8 @@ spl_autoload_register(function ($class) {
 
 use KidsWorld\Backend\Controllers\AdminController;
 use KidsWorld\Backend\Controllers\ApiController;
+use KidsWorld\Backend\Controllers\AuthController;
+use KidsWorld\Backend\Services\Auth;
 
 // Handle static files if using PHP built-in web server
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -39,6 +41,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $method = $_SERVER['REQUEST_METHOD'];
 $admin = new AdminController();
 $api = new ApiController();
+$auth = new AuthController();
+
+// 0. Đăng nhập. App của bé chỉ đọc /api/info và /api/packs..., các đường đó để công khai;
+//    mọi trang CMS và API quản trị (AI, tải ảnh, lưu gói) phải đăng nhập.
+Auth::startSession();
+$isPublicApi = $uri === '/api/info' || $uri === '/api/packs' || preg_match('#^/api/packs/[^/]+(/download)?$#', $uri);
+if ($uri === '/login') {
+    $method === 'POST' ? $auth->login() : $auth->showLogin();
+} elseif ($uri === '/logout' && $method === 'POST') {
+    $auth->logout();
+} elseif (!$isPublicApi && !Auth::user()) {
+    if (str_starts_with($uri, '/api/')) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['status' => 'error', 'message' => 'Cần đăng nhập CMS']);
+        exit;
+    }
+    $next = $_SERVER['REQUEST_URI'] ?? '/';
+    header('Location: /login' . ($next !== '/' ? '?next=' . urlencode($next) : ''));
+    exit;
+}
 
 // 1. API Endpoints
 if (str_starts_with($uri, '/api/')) {
@@ -101,6 +124,8 @@ if ($uri === '/' || $uri === '/dashboard') {
     $admin->updateItem(urldecode($matches[1]));
 } elseif (preg_match('#^/items/([^/]+)/delete$#', $uri, $matches)) {
     $admin->deleteItem(urldecode($matches[1]));
+} elseif ($uri === '/settings') {
+    $method === 'POST' ? $admin->saveSettings() : $admin->settings();
 } elseif ($uri === '/guide') {
     $admin->domainGuide();
 } elseif ($uri === '/docs' || $uri === '/docs/specification') {

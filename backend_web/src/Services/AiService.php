@@ -21,20 +21,31 @@ class AiService {
         }
 
         // If API key is provided or found in ENV, attempt live LLM call
-        $key = $apiKey ?: getenv('GEMINI_API_KEY') ?: getenv('OPENAI_API_KEY');
+        $key = $apiKey ?: Settings::geminiApiKey();
+        $warning = null;
         if (!empty($key)) {
             try {
                 $llmResult = self::callLlm($cleanPrompt, $count, $ageMin, $ageMax, $key);
                 if (!empty($llmResult) && isset($llmResult['pack']) && isset($llmResult['items'])) {
                     return $llmResult;
                 }
+                $warning = 'AI không trả về dữ liệu hợp lệ, đã dùng bộ mẫu có sẵn.';
             } catch (\Throwable $e) {
-                // Fallback to intelligent template generator
+                // Báo lý do cho người dùng thay vì im lặng rơi về template
+                $warning = 'Gọi AI thất bại: ' . $e->getMessage() . ' — đã dùng bộ mẫu có sẵn.';
             }
         }
 
+        if (empty($key)) {
+            $warning = 'Chưa có API key Gemini nên đây là bộ thẻ mẫu có sẵn, không phải nội dung AI soạn theo chủ đề của bạn. Thêm key ở trang Cài đặt.';
+        }
+
         // Smart Knowledge Generator according to Kids World Multi-Sensory template
-        return self::generateSmartTemplate($cleanPrompt, $count, $ageMin, $ageMax);
+        $result = self::generateSmartTemplate($cleanPrompt, $count, $ageMin, $ageMax);
+        if ($warning) {
+            $result['warning'] = $warning;
+        }
+        return $result;
     }
 
     /**
@@ -835,43 +846,57 @@ PROMPT;
     private static function callLlm(string $prompt, int $count, int $ageMin, int $ageMax, string $apiKey): ?array {
         $masterPrompt = self::buildPromptTemplate($prompt, $count, "{$ageMin}-{$ageMax}");
 
-        // Send request to Gemini endpoint if key looks like AIzaSy... or OpenAI
-        if (str_starts_with($apiKey, 'AIzaSy')) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey;
-            $payload = [
-                'contents' => [
-                    [
-                        'parts' => [
-                            ['text' => $masterPrompt]
-                        ]
+        // Chỉ hỗ trợ Gemini (key dạng AIza...). Model cấu hình qua biến môi trường GEMINI_MODEL.
+        if (!str_starts_with($apiKey, 'AIza')) {
+            throw new \RuntimeException('API key không phải Gemini (cần key bắt đầu bằng "AIza")');
+        }
+
+        $model = Settings::geminiModel();
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent';
+        $payload = [
+            'contents' => [
+                [
+                    'parts' => [
+                        ['text' => $masterPrompt]
                     ]
-                ],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'temperature' => 0.7
                 ]
-            ];
+            ],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'temperature' => 0.7
+            ]
+        ];
 
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 40);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            $res = curl_exec($ch);
-            curl_close($ch);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'x-goog-api-key: ' . $apiKey]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $res = curl_exec($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
+        curl_close($ch);
 
-            if ($res) {
-                $decoded = json_decode($res, true);
-                $rawText = $decoded['candidates'][0]['content']['parts'][0]['text'] ?? '';
-                if ($rawText) {
-                    $parsed = json_decode($rawText, true);
-                    if (isset($parsed['pack']) && isset($parsed['items'])) {
-                        $parsed['source'] = 'gemini_api';
-                        return $parsed;
-                    }
-                }
+        if ($res === false) {
+            throw new \RuntimeException('Lỗi kết nối Gemini: ' . $curlErr);
+        }
+
+        $decoded = json_decode($res, true);
+        if ($httpCode !== 200) {
+            $msg = $decoded['error']['message'] ?? ('HTTP ' . $httpCode);
+            throw new \RuntimeException("Gemini ($model) trả lỗi: $msg");
+        }
+
+        $rawText = $decoded['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        // Một số model vẫn bọc JSON trong ```json ... ```
+        $rawText = preg_replace('/^```(?:json)?\s*|\s*```$/', '', trim($rawText));
+        if ($rawText) {
+            $parsed = json_decode($rawText, true);
+            if (isset($parsed['pack']) && isset($parsed['items'])) {
+                $parsed['source'] = 'gemini_api:' . $model;
+                return $parsed;
             }
         }
 
@@ -882,14 +907,16 @@ PROMPT;
      * Generate precision AI Image Prompts for Kids World Flashcards & Games
      * Supports: 3D Cute Pixar/Disney, Realistic National Geographic Photography, and Coloring Book Page
      */
-    public static function generateImagePrompts(string $keyword, string $context = '', string $aspectRatio = '1:1', string $resolution = '1024x1024'): array {
+    public static function generateImagePrompts(string $keyword, string $context = '', string $aspectRatio = '16:9', string $resolution = '1920x1080'): array {
         $cleanKw = trim($keyword);
         if (empty($cleanKw)) {
             $cleanKw = 'Hà Mã';
         }
 
-        $arParam = !empty($aspectRatio) ? $aspectRatio : '1:1';
-        $resParam = !empty($resolution) ? $resolution : '1024x1024';
+        $arParam = !empty($aspectRatio) ? $aspectRatio : '16:9';
+        $resParam = !empty($resolution) ? $resolution : '1920x1080';
+        [$arW, $arH] = array_map('floatval', explode(':', $arParam) + [1, 1]);
+        $formatWord = $arW > $arH ? 'landscape format' : ($arW < $arH ? 'portrait format' : 'square format');
 
         // Dictionary of common educational entities with English translations and traits
         $dict = [
@@ -920,16 +947,18 @@ PROMPT;
 
         $lower = mb_strtolower($cleanKw, 'UTF-8');
         $matched = null;
+        // Khớp chính xác tên thẻ (tiếng Việt hoặc tiếng Anh). Không khớp kiểu "chứa chuỗi":
+        // "Khủng Long Bạo Chúa" chứa "khủng long" nhưng phải ra T-Rex, không ra "dinosaur" chung chung.
         foreach ($dict as $key => $val) {
-            if ($lower === $key || str_contains($lower, $key)) {
+            if ($lower === $key || $lower === mb_strtolower($val['en'], 'UTF-8')) {
                 $matched = $val;
                 break;
             }
         }
 
         if (!$matched) {
-            $enSubject = ucwords($cleanKw);
-            $enBaby = "adorable cute baby " . $cleanKw;
+            $enSubject = $cleanKw;
+            $enBaby = "cute baby " . $cleanKw;
             $setting = "in clean, natural bright environment";
             $features = "friendly expression, big sparkling eyes, smooth adorable shapes";
         } else {
@@ -940,13 +969,13 @@ PROMPT;
         }
 
         // Prompt 1: 3D Cute Pixar / Disney Style (Chuẩn Flashcard 3D)
-        $prompt3D = "Adorable cute {$enBaby}, {$features}, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high resolution {$resParam} pixels --ar {$arParam} --v 6.0";
+        $prompt3D = "Adorable {$enBaby}, {$features}, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high resolution {$resParam} pixels --ar {$arParam} --v 6.0";
 
         // Prompt 2: Real Life Photography (Chuẩn Ảnh Thật Bách Khoa)
         $promptReal = "Authentic high resolution wildlife photograph of a {$enSubject} {$setting}, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition, high resolution {$resParam} pixels --ar {$arParam} --v 6.0";
 
         // Prompt 3: Coloring Page Line Art (Tranh Nét Chia Mảng Rõ Ràng Cho Bé Tô Màu)
-        $promptColoring = "Clean bold black line art, coloring book page for toddlers and kids, cute friendly {$enSubject}, segmented into distinct clear individual sections for easy coloring, thick closed outlines, well-defined large coloring areas, no shading, no gradients, no grey tones, pure solid white background, high contrast, minimalist cartoon illustration, printable coloring sheet, crisp vector lines, square format {$resParam} pixels --ar {$arParam} --v 6.0";
+        $promptColoring = "Clean bold black line art, coloring book page for toddlers and kids, cute friendly {$enSubject}, segmented into distinct clear individual sections for easy coloring, thick closed outlines, well-defined large coloring areas, no shading, no gradients, no grey tones, pure solid white background, high contrast, minimalist cartoon illustration, printable coloring sheet, crisp vector lines, {$formatWord} {$resParam} pixels --ar {$arParam} --v 6.0";
 
         // Prompt 4: 2D Flat Vector / Sticker
         $promptVector = "Cute cartoon {$enSubject} sticker, kawaii flat vector illustration, bold clean outlines, cheerful friendly expression, vibrant pastel tones, isolated on white background, modern children educational graphic, SVG vector icon style, high detail, {$resParam} pixels --ar {$arParam}";

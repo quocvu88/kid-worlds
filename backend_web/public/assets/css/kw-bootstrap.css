@@ -1,0 +1,125 @@
+/* Bootstrap và class cũ của CMS theo token trong kw-ui.css.
+   Cho mọi trang, kể cả modal chọn ảnh, Hướng dẫn, Tài liệu còn dùng class Bootstrap. */
+:root {
+  --bs-body-font-family: var(--app-font);
+  --bs-body-font-size: 14px;
+  --bs-body-color: var(--foreground);
+  --bs-body-bg: var(--background);
+  --bs-secondary-color: var(--muted);
+  --bs-border-color: var(--border-strong);
+  --bs-border-radius: 12px;
+  --bs-border-radius-sm: 8px;
+  --bs-primary: var(--primary);
+  --bs-primary-rgb: 3, 105, 161;
+  --bs-link-color: var(--primary);
+  --bs-link-color-rgb: 3, 105, 161;
+  --bs-link-hover-color-rgb: 2, 132, 199;
+  --bs-focus-ring-color: var(--ring-focus);
+
+  /* Tên biến cũ của CMS, trỏ sang token mới */
+  --kw-primary: var(--primary);
+  --kw-primary-hover: var(--primary-hover);
+  --kw-primary-light: var(--primary-light);
+  --kw-primary-subtle: var(--primary-soft);
+  --kw-primary-border: var(--primary-soft);
+  --kw-primary-ring: var(--ring-focus);
+  --kw-bg: var(--background);
+  --kw-surface: var(--surface);
+  --kw-border: var(--border-strong);
+  --kw-border-light: var(--border);
+  --kw-border-subtle: var(--border);
+  --kw-border-hover: var(--border-strong);
+  --kw-card-bg: var(--surface);
+  --kw-card-border: var(--border);
+  --kw-card-radius: var(--radius);
+  --kw-text-main: var(--foreground);
+  --kw-text-muted: var(--muted);
+  --kw-text-light: var(--muted);
+  --kw-success: var(--success); --kw-success-bg: var(--success-bg);
+  --kw-warning: var(--warning); --kw-warning-bg: var(--warning-bg);
+  --kw-danger: var(--danger);   --kw-danger-bg: var(--error-bg);
+  --kw-radius: var(--radius); --kw-radius-sm: var(--radius-sm); --kw-radius-pill: 9999px;
+  --kw-shadow-sm: none; --kw-shadow-card: none;
+}
+.text-primary { color: var(--primary) !important; }
+.text-muted { color: var(--muted) !important; }
+.text-dark { color: var(--foreground) !important; }
+.bg-light { background-color: var(--surface-hover) !important; }
+.form-check-input { border-color: color-mix(in srgb, var(--foreground) 28%, transparent); cursor: pointer; }
+.form-check-input:checked { background-color: var(--primary); border-color: var(--primary); }
+.form-check-input:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px var(--ring-focus); }
+code { color: var(--neutral); font-size: 12px; }
+
+/* Ô nhập Bootstrap mang dáng k-input */
+.form-control, .form-select { min-height: 40px; border: 1px solid var(--border-strong); border-radius: 12px; background-color: var(--surface);
+  color: var(--foreground); font-size: 14px; padding: 8px 12px; box-shadow: none; }
+.form-select { padding-right: 36px; }
+.form-control-sm, .form-select-sm { min-height: 32px; border-radius: 8px; padding: 4px 10px; font-size: 13px; }
+.form-control:focus, .form-select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 2px var(--ring-focus); }
+.form-control::placeholder { color: var(--muted); }
+.form-control-color { min-height: 40px; width: 48px; padding: 4px; }
+.form-label { font-size: 14px; font-weight: 500; color: var(--foreground); margin-bottom: 6px; }
+.input-group-text { background: var(--surface-hover); border-color: var(--border-strong); color: var(--muted); }
+
+/* Card cũ */
+.card-custom { border: 1px solid var(--border) !important; border-radius: var(--radius) !important; box-shadow: none !important; background: var(--surface) !important; }
+.card-custom:hover { border-color: var(--border) !important; box-shadow: none !important; }
+.card-p-standard { padding: 20px !important; } .card-p-compact { padding: 16px !important; } .card-p-roomy { padding: 24px !important; }
+.card-custom-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px !important; border-bottom: 1px solid var(--border) !important; background: var(--surface); }
+.card-custom-footer { padding: 12px 20px !important; border-top: 1px solid var(--border) !important; background: var(--surface); }
+.banner-light-blue { background: var(--primary-light); border: 1px solid var(--primary-soft) !important; border-radius: var(--radius) !important; padding: 16px 20px; }
+
+/* Nút cũ: map sang bốn dạng của k-btn */
+.btn-kw-primary, .btn-kw-outline, .btn-kw-subtle { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 8px 16px;
+  border-radius: 12px; font-weight: 500; font-size: 14px; line-height: 1.25; box-shadow: none !important; transform: none !important; transition: background-color .15s, color .15s; }
+.btn-kw-primary { background: var(--primary); border: 1px solid var(--primary); color: #fff !important; }
+.btn-kw-primary:hover, .btn-kw-primary:focus { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff !important; }
+.btn-kw-outline { background: var(--surface); border: 1px solid var(--border-strong); color: var(--foreground); }
+.btn-kw-outline:hover, .btn-kw-outline:focus { background: var(--button-hover); border-color: var(--border-strong); color: var(--foreground); }
+.btn-kw-subtle { background: var(--secondary); border: 1px solid transparent; color: var(--foreground); }
+.btn-kw-subtle:hover, .btn-kw-subtle:focus { background: var(--secondary-hover); color: var(--foreground); }
+.btn-kw-primary.btn-sm, .btn-kw-outline.btn-sm, .btn-kw-subtle.btn-sm { min-height: 32px; padding: 4px 10px; border-radius: 8px; font-size: 13px; }
+.btn-kw-outline.active, .btn-kw-outline:active { background: var(--secondary) !important; border-color: var(--border-strong) !important; color: var(--foreground) !important; }
+
+/* Badge cũ */
+.badge-kw-blue, .badge-kw-slate, .badge-kw-green { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0 !important;
+  border-radius: 9999px; font-size: 12px; font-weight: 500; }
+.badge-kw-blue { background: var(--primary-light); color: var(--primary); }
+.badge-kw-slate { background: var(--neutral-bg); color: var(--neutral); }
+.badge-kw-green { background: var(--success-bg); color: var(--success); }
+
+/* Bảng cũ */
+.table { --bs-table-hover-bg: var(--surface-hover); --bs-table-border-color: var(--border); font-size: 14px; }
+.table > thead th, .table-light th, .table-custom thead th { background: var(--surface) !important; color: var(--muted); font-size: 12px; font-weight: 500;
+  text-transform: none; letter-spacing: normal; border-bottom: 1px solid var(--border); }
+.table-custom tbody td { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+
+/* Tab Bootstrap: gạch dưới, không viên */
+.nav-tabs { border-bottom: 1px solid var(--border-strong); gap: 24px; }
+.nav-tabs .nav-link { margin-bottom: -1px; padding: 0 !important; height: 44px; display: inline-flex; align-items: center; gap: 6px; border: 0 !important;
+  border-bottom: 2px solid transparent !important; border-radius: 0 !important; background: none !important; color: color-mix(in srgb, var(--foreground) 70%, transparent) !important; font-weight: 500; }
+.nav-tabs .nav-link:hover { color: var(--foreground) !important; }
+.nav-tabs .nav-link.active { color: var(--foreground) !important; border-bottom-color: var(--foreground) !important; }
+.nav-pills .nav-link { color: color-mix(in srgb, var(--foreground) 70%, transparent); border-radius: 8px; font-weight: 500; }
+.nav-pills .nav-link:hover { background: var(--item-hover); color: var(--foreground); }
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link { background: var(--secondary); color: var(--foreground); box-shadow: none; }
+
+/* Lớp nổi */
+.modal-content { border: 1px solid var(--border) !important; border-radius: var(--radius) !important; box-shadow: var(--elevation-modal) !important; }
+.modal-header, .modal-footer { border-color: var(--border) !important; background: var(--surface) !important; }
+.modal-backdrop.show { opacity: .15; }
+.alert { border-radius: 12px; font-size: 14px; }
+.alert-danger { background: var(--error-bg); border-color: var(--error-border); color: var(--error-strong); }
+.alert-warning { background: var(--warning-bg); border-color: #fde68a; color: var(--warning); }
+.spinner-border.text-primary { color: var(--primary) !important; }
+
+/* Menu thả */
+.dropdown-menu { --bs-dropdown-link-active-bg: var(--item-hover); --bs-dropdown-link-active-color: var(--foreground); min-width: 200px; padding: 4px;
+  border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--elevation-popover); font-size: 14px; }
+.dropdown-item { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 8px; color: var(--foreground); }
+.dropdown-item i { font-size: 16px; color: var(--muted); }
+.dropdown-item:hover, .dropdown-item:focus { background: var(--item-hover); color: var(--foreground); }
+.dropdown-item.k-item-danger:hover, .dropdown-item.k-item-danger:focus { background: var(--danger-bg); color: var(--danger); }
+.dropdown-item.k-item-danger:hover i { color: var(--danger); }
+.dropdown-divider { margin: 4px 0; border-color: var(--border); }
+.bg-info { background-color: var(--primary) !important; }

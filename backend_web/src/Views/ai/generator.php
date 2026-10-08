@@ -1,423 +1,148 @@
-<div class="mb-4">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb mb-1" style="font-size: 0.8rem;">
-            <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-muted">Bảng Điều Khiển</a></li>
-            <li class="breadcrumb-item active text-primary" aria-current="page">AI Content Studio & Prompt Generator</li>
-        </ol>
-    </nav>
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-            <h5 class="fw-bold mb-1 text-dark d-flex align-items-center gap-2">
-                <span class="d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: var(--kw-primary-light); border: 1px solid var(--kw-primary-border); border-radius: var(--kw-radius-sm); color: var(--kw-primary);">
-                    <i class="bi bi-stars fs-5"></i>
-                </span>
-                Studio Thiết Kế Nội Dung & Tạo Prompt AI
-            </h5>
-            <p class="text-muted mb-0" style="font-size: 0.875rem;">
-                Chuẩn hóa cấu trúc bộ học phần đa giác quan (Background, Phonics, SFX, Real Photo, Bento Parent Guide: Fun Fact, Câu hỏi đố bé, Vận động) để làm prompt input cho AI và nhập nhanh JSON vào hệ thống.
-            </p>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="/packs" class="btn btn-kw-outline">
-                <i class="bi bi-collection"></i> Danh Sách Gói
-            </a>
-            <button type="button" class="btn btn-kw-primary" onclick="switchTab('promptTab')">
-                <i class="bi bi-pencil-square"></i> Tạo Prompt AI
-            </button>
-        </div>
+<?php
+$pageTitle = 'Tạo bằng AI';
+ob_start(); ?>
+<div class="k-savebar d-none" id="resultSavebar">
+    <span class="k-muted" style="white-space:nowrap">Giữ <span id="selectedCountText">0</span> / <span id="totalCountText">0</span> thẻ</span>
+    <button type="button" class="k-btn k-btn-ghost k-btn-sm k-hide-sm" onclick="toggleSelectAll(true)">Chọn tất cả</button>
+    <button type="button" class="k-btn k-btn-ghost k-btn-sm k-hide-sm" onclick="toggleSelectAll(false)">Bỏ chọn</button>
+    <div style="margin-left:auto;display:flex;gap:8px">
+        <button type="button" class="k-btn k-btn-outline k-sm-icon" onclick="openPackPromptSheet()" aria-label="Bộ prompt ảnh cả gói"><i class="bi bi-magic"></i><span class="k-btn-label">Prompt ảnh cả gói</span></button>
+        <button type="button" class="k-btn k-btn-outline" onclick="resetForm()">Soạn lại</button>
+        <button type="button" class="k-btn k-btn-primary" onclick="saveGeneratedPack()">Lưu thành gói</button>
     </div>
 </div>
+<?php $kwAfterMain = ob_get_clean(); ?>
 
-<!-- Navigation Tabs -->
-<ul class="nav nav-pills mb-4 gap-2" id="studioTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active d-flex align-items-center gap-2" id="prompt-tab-btn" data-bs-toggle="pill" data-bs-target="#promptTab" type="button" role="tab">
-            <i class="bi bi-card-text"></i>
-            <span>1. Trình Tạo Prompt AI (Master Prompt)</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link d-flex align-items-center gap-2" id="import-tab-btn" data-bs-toggle="pill" data-bs-target="#importTab" type="button" role="tab">
-            <i class="bi bi-box-arrow-in-down"></i>
-            <span>2. Nhập Dữ Liệu JSON Từ AI</span>
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link d-flex align-items-center gap-2" id="builtin-tab-btn" data-bs-toggle="pill" data-bs-target="#builtinTab" type="button" role="tab">
-            <i class="bi bi-lightning-charge"></i>
-            <span>3. Khởi Tạo Tự Động Trực Tiếp (Built-in)</span>
-        </button>
-    </li>
-</ul>
-
-<div class="tab-content" id="studioTabsContent">
-    <!-- TAB 1: PROMPT GENERATOR & MASTER SPECIFICATION -->
-    <div class="tab-pane fade show active" id="promptTab" role="tabpanel">
-        <div class="card card-custom p-4 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
-                <div>
-                    <h6 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-                        <i class="bi bi-input-cursor-text text-primary"></i>
-                        Cấu Hình Input Cho Prompt Tạo Nội Dung
-                    </h6>
-                    <small class="text-muted">Tùy chỉnh thông số chủ đề, hệ thống sẽ tự động ghép vào chuẩn kiến trúc đa giác quan hoàn chỉnh</small>
-                </div>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-kw-outline btn-sm" onclick="copyMasterPrompt()">
-                        <i class="bi bi-clipboard" id="copyIcon"></i> <span id="copyBtnText">Sao Chép Toàn Bộ Prompt</span>
-                    </button>
-                </div>
+<div class="k-split-left">
+    <!-- Cột trái: ba cách đưa nội dung vào -->
+    <div class="k-sticky">
+        <section class="k-card">
+            <div class="k-tabs" role="tablist" style="padding:0 20px;gap:20px" id="studioTabs">
+                <button class="k-tab" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#builtinTab" aria-selected="true">Tạo trực tiếp</button>
+                <button class="k-tab" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#promptTab" aria-selected="false">Prompt cho AI ngoài</button>
+                <button class="k-tab" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#importTab" aria-selected="false">Dán JSON</button>
             </div>
-
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-dark">Chủ Đề Hoặc Ý Tưởng Cần Tạo</label>
-                    <input type="text" id="builderTopicInput" class="form-control" value="Thế giới động vật hoang dã kỳ thú trên thảo nguyên" placeholder="Ví dụ: Các loại xe chuyên dụng cứu hộ, Thế giới khủng long..." oninput="updatePromptDisplay()">
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <label class="form-label fw-semibold text-dark">Số Lượng Thẻ Học</label>
-                    <select id="builderCountSelect" class="form-select" onchange="updatePromptDisplay()">
-                        <option value="4">4 thẻ (Gọn nhẹ)</option>
-                        <option value="6" selected>6 thẻ (Chuẩn khuyến nghị)</option>
-                        <option value="8">8 thẻ (Đầy đủ)</option>
-                        <option value="10">10 thẻ (Phong phú)</option>
-                    </select>
-                </div>
-                <div class="col-md-3 col-sm-6">
-                    <label class="form-label fw-semibold text-dark">Độ Tuổi Mục Tiêu</label>
-                    <select id="builderAgeSelect" class="form-select" onchange="updatePromptDisplay()">
-                        <option value="2-5">2 – 5 tuổi (Mầm non / Làm quen)</option>
-                        <option value="3-8" selected>3 – 8 tuổi (Mẫu giáo & Lớp 1)</option>
-                        <option value="6-10">6 – 10 tuổi (Tiểu học / Mở rộng)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Quick Suggestions -->
-            <div class="mb-3">
-                <small class="text-muted d-block mb-1.5" style="font-size: 0.75rem; font-weight: 500;">Gợi ý chủ đề nhanh:</small>
-                <div class="d-flex flex-wrap gap-1.5">
-                    <button type="button" class="btn btn-kw-outline btn-sm py-1 px-2.5" onclick="setBuilderTopic('Thế giới động vật hoang dã dũng mãnh và đáng yêu trên thảo nguyên', 6, '3-8')">
-                        🦁 Động Vật Thảo Nguyên
-                    </button>
-                    <button type="button" class="btn btn-kw-outline btn-sm py-1 px-2.5" onclick="setBuilderTopic('Các phương tiện giao thông cứu hộ khẩn cấp: xe cứu hỏa, cứu thương, cảnh sát, trực thăng', 6, '3-6')">
-                        🚒 Xe Cứu Hộ Khẩn Cấp
-                    </button>
-                    <button type="button" class="btn btn-kw-outline btn-sm py-1 px-2.5" onclick="setBuilderTopic('Thế giới khủng long tiền sử kỳ vĩ: T-Rex, Triceratops, Brachiosaurus', 6, '4-8')">
-                        🦖 Khủng Long Tiền Sử
-                    </button>
-                    <button type="button" class="btn btn-kw-outline btn-sm py-1 px-2.5" onclick="setBuilderTopic('Khám phá hệ mặt trời, các phi hành gia và tàu vũ trụ', 6, '5-10')">
-                        🚀 Vũ Trụ & Phi Hành Gia
-                    </button>
-                    <button type="button" class="btn btn-kw-outline btn-sm py-1 px-2.5" onclick="setBuilderTopic('Các sinh vật đại dương kỳ thú: cá voi xanh, cá heo thông minh, rùa biển', 6, '3-8')">
-                        🌊 Đại Dương Bao La
-                    </button>
-                    <button type="button" class="btn btn-kw-outline btn-sm py-1 px-2.5" onclick="setBuilderTopic('Các loại trái cây nhiệt đới thơm ngon và giàu vitamin', 6, '2-5')">
-                        🍎 Trái Cây Nhiệt Đới
-                    </button>
-                </div>
-            </div>
-
-            <!-- Master Prompt Display Box -->
-            <div class="position-relative">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="form-label fw-semibold text-dark mb-0">
-                        Nội Dung Prompt Hoàn Chỉnh (Sẵn sàng copy & dán vào AI):
-                    </label>
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge-kw-blue font-monospace" style="font-size: 0.7rem;">Chuẩn Kids World Spec v2</span>
-                    </div>
-                </div>
-                <textarea id="masterPromptBox" class="form-control font-monospace mb-3" rows="13" style="font-size: 0.8rem; background: #0f172a; color: #38bdf8; border-color: #334155; line-height: 1.5;"></textarea>
-                
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
-                    <div class="d-flex gap-2 align-items-center">
-                        <span class="text-muted small">Mở nhanh công cụ AI:</span>
-                        <a href="https://chatgpt.com" target="_blank" class="btn btn-kw-outline btn-sm py-1 px-2.5 text-decoration-none">
-                            <i class="bi bi-box-arrow-up-right me-1"></i> ChatGPT
-                        </a>
-                        <a href="https://gemini.google.com" target="_blank" class="btn btn-kw-outline btn-sm py-1 px-2.5 text-decoration-none">
-                            <i class="bi bi-box-arrow-up-right me-1"></i> Gemini
-                        </a>
-                        <a href="https://claude.ai" target="_blank" class="btn btn-kw-outline btn-sm py-1 px-2.5 text-decoration-none">
-                            <i class="bi bi-box-arrow-up-right me-1"></i> Claude
-                        </a>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-kw-outline btn-sm py-1.5 px-3" onclick="copyMasterPrompt()">
-                            <i class="bi bi-clipboard"></i> Sao Chép Prompt
-                        </button>
-                        <button type="button" class="btn btn-kw-primary btn-sm py-1.5 px-3" onclick="goToImportTab()">
-                            <i class="bi bi-arrow-right-circle me-1"></i> Đã Có Kết Quả → Đi Tới Tab Nhập JSON
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Architecture Breakdown Cards -->
-        <div class="row g-3">
-            <div class="col-md-4">
-                <div class="card card-custom card-p-standard h-100">
-                    <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-semibold" style="font-size: 0.9rem;">
-                        <i class="bi bi-palette-fill fs-5"></i>
-                        <span>1. Background & Theme Color</span>
-                    </div>
-                    <p class="text-muted small mb-0">
-                        Quy định màu chủ đạo và ảnh nền theo chủ đề (Thảo nguyên, Kẹo ngọt, Vũ trụ, Tiệc bóng bay...) tạo không gian đắm chìm cho trẻ.
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card card-custom card-p-standard h-100">
-                    <div class="d-flex align-items-center gap-2 mb-2 text-success fw-semibold" style="font-size: 0.9rem;">
-                        <i class="bi bi-soundwave fs-5"></i>
-                        <span>2. Song Ngữ, Phonics & SFX</span>
-                    </div>
-                    <p class="text-muted small mb-0">
-                        Tích hợp đánh vần ngữ âm Phonics <code>/l-aɪ-ə-n/</code>, âm thanh thực tế SFX (tiếng gầm, còi xe) và loa phát âm song ngữ Anh - Việt.
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card card-custom card-p-standard h-100">
-                    <div class="d-flex align-items-center gap-2 mb-2 text-warning fw-semibold" style="font-size: 0.9rem;">
-                        <i class="bi bi-card-checklist fs-5"></i>
-                        <span>3. Bento Parent Guide 3 Khối</span>
-                    </div>
-                    <p class="text-muted small mb-0">
-                        Cẩm nang mặt sau thẻ hỗ trợ cha mẹ: 💡 <b>Sự thật kỳ thú</b>, ❓ <b>Cha mẹ đố bé</b> kích thích tư duy, và 🤸 <b>Cùng bé vận động</b> thể chất.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- TAB 2: IMPORT JSON FROM AI -->
-    <div class="tab-pane fade" id="importTab" role="tabpanel">
-        <div class="card card-custom p-4 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
-                <div>
-                    <h6 class="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
-                        <i class="bi bi-box-arrow-in-down text-primary"></i>
-                        Dán Kết Quả JSON Từ AI (ChatGPT / Gemini / Claude)
-                    </h6>
-                    <small class="text-muted">Nhập chuỗi JSON do AI sinh ra, hệ thống sẽ phân tích cú pháp và hiển thị đầy đủ thẻ học đa giác quan</small>
-                </div>
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-kw-outline btn-sm" onclick="loadSampleJson()">
-                        <i class="bi bi-file-earmark-code"></i> Nạp Dữ Liệu Mẫu
-                    </button>
-                    <button type="button" class="btn btn-kw-outline btn-sm" onclick="clearJsonInput()">
-                        <i class="bi bi-x-circle"></i> Xóa Trắng
-                    </button>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label fw-semibold text-dark">Chuỗi JSON Kết Quả</label>
-                <textarea id="jsonImportInput" class="form-control font-monospace" rows="9" placeholder='Dán mã JSON {"pack": {...}, "items": [...]} vào đây...' style="font-size: 0.825rem; resize: vertical;"></textarea>
-                <div id="jsonErrorAlert" class="alert alert-danger py-2 px-3 mt-2 d-none" role="alert" style="font-size: 0.825rem;"></div>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
-                <span class="text-muted small">
-                    <i class="bi bi-info-circle me-1"></i> Trình phân tích tự động chuẩn hóa dữ liệu, URL ảnh, tọa độ và gán fallback thông minh.
-                </span>
-                <button type="button" class="btn btn-kw-primary px-4 py-2" onclick="handleImportJson()">
-                    <i class="bi bi-magic me-1"></i> Phân Tích & Xem Trước Dữ Liệu
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- TAB 3: BUILT-IN AUTOMATIC GENERATOR -->
-    <div class="tab-pane fade" id="builtinTab" role="tabpanel">
-        <div class="card card-custom p-4 mb-4">
-            <form id="aiPromptForm" onsubmit="handleGenerate(event)">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold text-dark d-flex justify-content-between align-items-center">
-                        <span>Mô Tả Chủ Đề Cần Tạo Tự Động <span class="text-danger">*</span></span>
-                        <span class="text-muted fw-normal" style="font-size: 0.75rem;">Hỗ trợ tiếng Việt tự nhiên</span>
-                    </label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-white text-muted" style="border-color: var(--kw-border);">
-                            <i class="bi bi-chat-left-quote"></i>
-                        </span>
-                        <textarea id="promptInput" class="form-control" rows="2" placeholder="Ví dụ: Bộ thẻ học về các loài khủng long tiền sử cho bé 4-8 tuổi..." required style="resize: none;">Thế giới khủng long tiền sử kỳ thú cho bé 4-8 tuổi</textarea>
-                    </div>
+            <div class="tab-content">
+                <!-- Tạo trực tiếp -->
+                <div class="tab-pane fade show active" id="builtinTab" role="tabpanel">
+                    <form id="aiPromptForm" onsubmit="handleGenerate(event)" class="k-card-body" style="display:grid;gap:16px">
+                        <div class="k-field"><label class="k-label" for="promptInput">Chủ đề <span class="k-req">*</span></label>
+                            <textarea id="promptInput" class="k-textarea" placeholder="Ví dụ: Bộ thẻ về các loài khủng long cho bé 4–8 tuổi" required>Thế giới khủng long tiền sử kỳ thú cho bé 4-8 tuổi</textarea></div>
+                        <div class="k-grid-2">
+                            <div class="k-field"><label class="k-label" for="countSelect">Số thẻ</label>
+                                <select id="countSelect" class="k-select"><option value="4">4 thẻ</option><option value="6" selected>6 thẻ</option><option value="8">8 thẻ</option><option value="10">10 thẻ</option></select></div>
+                            <div class="k-field"><label class="k-label" for="targetAgeSelect">Độ tuổi</label>
+                                <select id="targetAgeSelect" class="k-select"><option value="2-5">2–5 tuổi</option><option value="3-8" selected>3–8 tuổi</option><option value="6-10">6–10 tuổi</option></select></div>
+                        </div>
+                        <?php if (!empty($hasAiKey)): ?>
+                            <p class="k-muted" style="margin:0"><i class="bi bi-check-circle-fill" style="color:var(--success)"></i> Dùng Gemini <span class="k-mono"><?= kw_e($aiModel ?? '') ?></span>. <a href="/settings#ai" style="color:var(--foreground);font-weight:500">Đổi ở Cài đặt</a></p>
+                        <?php else: ?>
+                            <div class="k-flash k-flash-warning"><i class="bi bi-exclamation-triangle-fill"></i><span>Chưa có API key nên kết quả là bộ thẻ mẫu, không theo chủ đề. <a href="/settings#ai" style="color:var(--foreground);font-weight:500;text-decoration:underline">Thêm key ở Cài đặt</a></span></div>
+                        <?php endif; ?>
+                        <button type="submit" id="btnGenerate" class="k-btn k-btn-primary"><i class="bi bi-stars"></i>Tạo nội dung</button>
+                    </form>
                 </div>
 
-                <!-- Configuration Options Row -->
-                <div class="row g-3 align-items-end pt-2 border-top">
-                    <div class="col-md-3 col-sm-6">
-                        <label class="form-label">Số Lượng Thẻ Học</label>
-                        <select id="countSelect" class="form-select">
-                            <option value="4">4 thẻ (Gọn nhẹ)</option>
-                            <option value="6" selected>6 thẻ (Chuẩn khuyến nghị)</option>
-                            <option value="8">8 thẻ (Đầy đủ)</option>
-                            <option value="10">10 thẻ (Phong phú)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                        <label class="form-label">Độ Tuổi Mục Tiêu</label>
-                        <select id="targetAgeSelect" class="form-select">
-                            <option value="2-5">2 – 5 tuổi (Mầm non / Làm quen)</option>
-                            <option value="3-8" selected>3 – 8 tuổi (Khám phá / Mẫu giáo & Lớp 1)</option>
-                            <option value="6-10">6 – 10 tuổi (Tiểu học / Nâng cao)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 col-sm-6">
-                        <label class="form-label d-flex justify-content-between">
-                            <span>Gemini API Key</span>
-                            <small class="text-muted fw-normal" style="font-size: 0.7rem;">(Tùy chọn)</small>
-                        </label>
-                        <input type="password" id="apiKeyInput" class="form-control" placeholder="Để trống = Dùng Built-in AI">
-                    </div>
-                    <div class="col-md-3 col-sm-6 text-md-end">
-                        <button type="submit" id="btnGenerate" class="btn btn-kw-primary w-100 py-2 justify-content-center">
-                            <i class="bi bi-stars"></i> Khởi Tạo Trực Tiếp
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Loading State Card -->
-<div id="loadingBox" class="card card-custom p-5 text-center mb-4 d-none">
-    <div class="spinner-border text-primary mb-3" style="width: 2.8rem; height: 2.8rem; border-width: 0.25em;" role="status"></div>
-    <h6 class="fw-semibold text-dark mb-1" id="loadingTitle">AI đang khởi tạo bộ nội dung đa giác quan...</h6>
-    <p class="text-muted small mb-0" id="loadingSubtitle">Đang thiết lập thông tin song ngữ, Phonics, SFX thực tế, ảnh đời thực và Bento Parent Guide.</p>
-</div>
-
-<!-- Result Preview Container -->
-<div id="resultContainer" class="d-none">
-    <!-- Pack Overview Card -->
-    <div class="card card-custom p-4 mb-4" style="background: #fcfdfe; border-color: var(--kw-primary-border);">
-        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge-kw-blue fw-semibold">Thông Tin Gói Chủ Đề (Pack)</span>
-                <span class="text-muted" style="font-size: 0.8rem;">(Xem trước và điều chỉnh trước khi lưu vào CSDL)</span>
-            </div>
-            <div class="d-flex gap-2 flex-wrap">
-                <button type="button" class="btn btn-kw-subtle btn-sm" onclick="openPackPromptSheet()">
-                    <i class="bi bi-stars me-1 text-primary"></i> Bộ Prompt Tạo Ảnh Cả Gói
-                </button>
-                <button type="button" class="btn btn-kw-outline btn-sm" onclick="resetForm()">
-                    <i class="bi bi-arrow-repeat"></i> Soạn Lại
-                </button>
-                <button type="button" class="btn btn-kw-primary btn-sm px-3" onclick="saveGeneratedPack()">
-                    <i class="bi bi-cloud-arrow-up-fill"></i> Lưu Gói & Thẻ Vào Hệ Thống
-                </button>
-            </div>
-        </div>
-
-        <div class="row g-3">
-            <div class="col-md-3 text-center">
-                <div class="border rounded-3 overflow-hidden bg-light position-relative shadow-xs mb-2" style="height: 140px; border-color: var(--kw-border) !important; cursor: pointer;" onclick="browsePackImage()" title="Nhấp để đổi ảnh thumbnail">
-                    <img id="previewPackThumb" src="" style="width: 100%; height: 100%; object-fit: cover;" alt="Pack Thumbnail">
-                    <div class="position-absolute bottom-0 start-0 end-0 py-1 bg-dark bg-opacity-60 text-white text-center" style="font-size: 0.725rem;">
-                        <i class="bi bi-camera me-1"></i> Bấm để duyệt & đổi ảnh
-                    </div>
-                </div>
-                <div class="input-group input-group-sm">
-                    <input type="text" id="packThumbInput" class="form-control text-truncate" placeholder="URL ảnh Thumbnail" onchange="updatePackThumb(this.value)">
-                    <button type="button" class="btn btn-kw-subtle" onclick="browsePackImage()" title="Duyệt kho ảnh">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="col-md-9">
-                <div class="row g-2.5">
-                    <div class="col-md-4">
-                        <label class="form-label">Mã Gói (ID)</label>
-                        <input type="text" id="packIdInput" class="form-control form-control-sm font-monospace" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Tên Tiếng Việt</label>
-                        <input type="text" id="packTitleViInput" class="form-control form-control-sm fw-semibold" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Tên Tiếng Anh</label>
-                        <input type="text" id="packTitleEnInput" class="form-control form-control-sm" required>
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label">Danh Mục</label>
-                        <select id="packCategorySelect" class="form-select form-select-sm">
-                            <option value="animals">Động vật (animals)</option>
-                            <option value="dinosaurs">Khủng long (dinosaurs)</option>
-                            <option value="space">Vũ trụ (space)</option>
-                            <option value="vehicles">Xe cộ (vehicles)</option>
-                            <option value="fruits">Trái cây (fruits)</option>
-                            <option value="nature">Thiên nhiên (nature)</option>
-                            <option value="general">Tổng hợp (general)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Màu Chủ Đạo</label>
-                        <div class="input-group input-group-sm">
-                            <input type="color" id="packThemeColorPicker" class="form-control form-control-color" style="width: 40px; padding: 2px;" value="#10b981" onchange="document.getElementById('packThemeColorInput').value = this.value">
-                            <input type="text" id="packThemeColorInput" class="form-control font-monospace" value="#10b981" onchange="document.getElementById('packThemeColorPicker').value = this.value">
+                <!-- Prompt cho AI ngoài -->
+                <div class="tab-pane fade" id="promptTab" role="tabpanel">
+                    <div class="k-card-body" style="display:grid;gap:16px">
+                        <div class="k-field"><label class="k-label" for="builderTopicInput">Chủ đề</label>
+                            <input type="text" id="builderTopicInput" class="k-input" value="Thế giới động vật hoang dã kỳ thú trên thảo nguyên" placeholder="Ví dụ: Các loại xe cứu hộ" oninput="updatePromptDisplay()"></div>
+                        <div class="k-grid-2">
+                            <div class="k-field"><label class="k-label" for="builderCountSelect">Số thẻ</label>
+                                <select id="builderCountSelect" class="k-select" onchange="updatePromptDisplay()"><option value="4">4 thẻ</option><option value="6" selected>6 thẻ</option><option value="8">8 thẻ</option><option value="10">10 thẻ</option></select></div>
+                            <div class="k-field"><label class="k-label" for="builderAgeSelect">Độ tuổi</label>
+                                <select id="builderAgeSelect" class="k-select" onchange="updatePromptDisplay()"><option value="2-5">2–5 tuổi</option><option value="3-8" selected>3–8 tuổi</option><option value="6-10">6–10 tuổi</option></select></div>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px" aria-label="Chủ đề gợi ý">
+                            <button type="button" class="k-chip" onclick="setBuilderTopic('Thế giới động vật hoang dã dũng mãnh và đáng yêu trên thảo nguyên', 6, '3-8')">Động vật thảo nguyên</button>
+                            <button type="button" class="k-chip" onclick="setBuilderTopic('Các phương tiện giao thông cứu hộ khẩn cấp: xe cứu hỏa, cứu thương, cảnh sát, trực thăng', 6, '3-6')">Xe cứu hộ</button>
+                            <button type="button" class="k-chip" onclick="setBuilderTopic('Thế giới khủng long tiền sử kỳ vĩ: T-Rex, Triceratops, Brachiosaurus', 6, '4-8')">Khủng long</button>
+                            <button type="button" class="k-chip" onclick="setBuilderTopic('Khám phá hệ mặt trời, các phi hành gia và tàu vũ trụ', 6, '5-10')">Vũ trụ</button>
+                            <button type="button" class="k-chip" onclick="setBuilderTopic('Các sinh vật đại dương kỳ thú: cá voi xanh, cá heo thông minh, rùa biển', 6, '3-8')">Đại dương</button>
+                            <button type="button" class="k-chip" onclick="setBuilderTopic('Các loại trái cây nhiệt đới thơm ngon và giàu vitamin', 6, '2-5')">Trái cây</button>
+                        </div>
+                        <div class="k-field"><label class="k-label" for="masterPromptBox">Prompt hoàn chỉnh</label>
+                            <textarea id="masterPromptBox" class="k-prompt-box"></textarea></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button type="button" class="k-btn k-btn-outline" onclick="copyMasterPrompt()"><i class="bi bi-clipboard" id="copyIcon"></i><span id="copyBtnText">Sao chép prompt</span></button>
+                            <button type="button" class="k-btn k-btn-primary" onclick="goToImportTab()">Đã có kết quả, dán JSON</button>
+                        </div>
+                        <div class="k-xs k-muted" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">Mở nhanh:
+                            <a class="k-link-more" style="margin:0" href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT</a>
+                            <a class="k-link-more" style="margin:0" href="https://gemini.google.com" target="_blank" rel="noopener">Gemini</a>
+                            <a class="k-link-more" style="margin:0" href="https://claude.ai" target="_blank" rel="noopener">Claude</a>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Lứa Tuổi</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" id="packAgeMinInput" class="form-control" min="1" max="15">
-                            <span class="input-group-text bg-white text-muted">đến</span>
-                            <input type="number" id="packAgeMaxInput" class="form-control" min="1" max="15">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Dung Lượng Dự Kiến</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" step="0.1" id="packSizeInput" class="form-control">
-                            <span class="input-group-text bg-white text-muted">MB</span>
-                        </div>
-                    </div>
+                </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label">URL Hình Nền (Background URL)</label>
-                        <input type="text" id="packBgUrlInput" class="form-control form-control-sm" placeholder="https://... hoặc để trống để dùng nền chuẩn">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Mô Tả Tiếng Việt Cho Bé</label>
-                        <input type="text" id="packDescViInput" class="form-control form-control-sm">
+                <!-- Dán JSON -->
+                <div class="tab-pane fade" id="importTab" role="tabpanel">
+                    <div class="k-card-body" style="display:grid;gap:16px">
+                        <div class="k-field"><label class="k-label" for="jsonImportInput">JSON từ AI</label>
+                            <textarea id="jsonImportInput" class="k-prompt-box" placeholder='Dán {"pack": {...}, "items": [...]} vào đây'></textarea>
+                            <div id="jsonErrorAlert" class="k-banner d-none" role="alert"></div></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                            <button type="button" class="k-btn k-btn-primary" onclick="handleImportJson()">Xem trước</button>
+                            <button type="button" class="k-btn k-btn-outline" onclick="loadSampleJson()">Dữ liệu mẫu</button>
+                            <button type="button" class="k-btn k-btn-ghost" onclick="clearJsonInput()">Xoá trắng</button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
-    <!-- Items Grid Header -->
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <div>
-            <h6 class="fw-semibold mb-0 text-dark">
-                Danh Sách Thẻ Từ Vựng Đa Giác Quan (<span id="selectedCountText">0</span>/<span id="totalCountText">0</span> thẻ đã chọn)
-            </h6>
-            <small class="text-muted">Đầy đủ Phonics, SFX thực tế, hình ảnh minh họa & đời thực, cùng Bento cẩm nang tương tác phụ huynh</small>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-            <button type="button" class="btn btn-kw-outline btn-sm py-1" onclick="toggleSelectAll(true)">
-                <i class="bi bi-check-all"></i> Chọn Tất Cả
-            </button>
-            <button type="button" class="btn btn-kw-outline btn-sm py-1" onclick="toggleSelectAll(false)">
-                <i class="bi bi-dash"></i> Bỏ Chọn
-            </button>
-            <button type="button" class="btn btn-kw-primary btn-sm py-1 px-3" onclick="saveGeneratedPack()">
-                <i class="bi bi-check-circle me-1"></i> Lưu Vào Hệ Thống
-            </button>
-        </div>
-    </div>
+    <!-- Cột phải: kết quả để duyệt -->
+    <div class="k-stack">
+        <div id="emptyResultBox" class="k-card"><p class="k-empty" style="margin:0">Nhập chủ đề rồi bấm Tạo nội dung, hoặc dán JSON từ AI ngoài. Thẻ AI soạn sẽ hiện ở đây để bạn duyệt trước khi lưu.</p></div>
 
-    <!-- Items Grid Container -->
-    <div class="row g-3" id="itemsGridContainer">
-        <!-- Rendered dynamically by JavaScript -->
+        <div id="loadingBox" class="k-stack d-none" aria-live="polite">
+            <div class="k-muted" style="display:flex;gap:8px;align-items:center"><span class="spinner-border spinner-border-sm text-primary" role="status"></span><span><span id="loadingTitle">AI đang soạn thẻ</span>. <span id="loadingSubtitle">Thường mất khoảng 20 giây.</span></span></div>
+            <?php for ($i = 0; $i < 4; $i++): ?>
+                <div class="k-card" style="padding:16px;display:flex;gap:12px"><span class="k-skel" style="width:56px;height:56px"></span><div style="flex:1;display:grid;gap:8px"><span class="k-skel" style="width:40%;height:14px"></span><span class="k-skel" style="width:30%;height:10px"></span></div></div>
+            <?php endfor; ?>
+        </div>
+
+        <div id="resultContainer" class="k-stack d-none">
+            <div id="resultWarning" class="k-flash k-flash-warning d-none" role="alert"><i class="bi bi-exclamation-triangle-fill"></i><span></span></div>
+            <section class="k-card">
+                <div class="k-card-head"><h2>Thông tin gói</h2></div>
+                <div class="k-card-body" style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px" id="packMetaGrid">
+                    <div style="display:grid;gap:8px;align-content:start">
+                        <div class="k-image-box" style="aspect-ratio:1;cursor:pointer" onclick="browsePackImage()" title="Đổi ảnh đại diện"><img id="previewPackThumb" src="" alt="Ảnh đại diện gói"></div>
+                        <input type="hidden" id="packThumbInput" onchange="updatePackThumb(this.value)">
+                        <button type="button" class="k-btn k-btn-outline k-btn-sm" onclick="browsePackImage()">Đổi ảnh</button>
+                    </div>
+                    <div style="display:grid;gap:12px">
+                        <div class="k-grid-2">
+                            <div class="k-field"><label class="k-label" for="packTitleViInput">Tên tiếng Việt</label><input type="text" id="packTitleViInput" class="k-input" required></div>
+                            <div class="k-field"><label class="k-label" for="packTitleEnInput">Tên tiếng Anh</label><input type="text" id="packTitleEnInput" class="k-input" required></div>
+                        </div>
+                        <div class="k-grid-3">
+                            <div class="k-field"><label class="k-label" for="packIdInput">Mã gói</label><input type="text" id="packIdInput" class="k-input k-mono" required></div>
+                            <div class="k-field"><label class="k-label" for="packCategorySelect">Danh mục</label>
+                                <select id="packCategorySelect" class="k-select">
+                                    <option value="animals">Động vật</option><option value="dinosaurs">Khủng long</option><option value="space">Vũ trụ</option><option value="vehicles">Xe cộ</option><option value="fruits">Trái cây</option><option value="nature">Thiên nhiên</option><option value="general">Tổng hợp</option>
+                                </select></div>
+                            <div class="k-field"><label class="k-label" for="packThemeColorInput">Màu chủ đạo</label>
+                                <div style="display:flex;gap:8px"><input type="color" id="packThemeColorPicker" class="form-control form-control-color" value="#10b981" onchange="document.getElementById('packThemeColorInput').value = this.value" aria-label="Chọn màu"><input type="text" id="packThemeColorInput" class="k-input k-mono" value="#10b981" onchange="document.getElementById('packThemeColorPicker').value = this.value"></div></div>
+                        </div>
+                        <div class="k-grid-3">
+                            <div class="k-field"><span class="k-label">Độ tuổi</span><div style="display:flex;gap:6px;align-items:center"><input type="number" id="packAgeMinInput" class="k-input k-num" min="1" max="15" aria-label="Tuổi từ"><span class="k-muted">–</span><input type="number" id="packAgeMaxInput" class="k-input k-num" min="1" max="15" aria-label="Tuổi đến"></div></div>
+                            <div class="k-field"><label class="k-label" for="packSizeInput">Dung lượng (MB)</label><input type="number" step="0.1" id="packSizeInput" class="k-input k-num"></div>
+                            <div class="k-field"><label class="k-label" for="packBgUrlInput">Hình nền</label><input type="text" id="packBgUrlInput" class="k-input" placeholder="Để trống dùng nền chuẩn"></div>
+                        </div>
+                        <div class="k-field"><label class="k-label" for="packDescViInput">Mô tả cho bé</label><input type="text" id="packDescViInput" class="k-input"></div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="itemsGridContainer" class="k-stack"></div>
+        </div>
     </div>
 </div>
+<style>@media (max-width:767px){#packMetaGrid{grid-template-columns:minmax(0,1fr)!important}}</style>
 
 <script>
     let generatedData = null;
@@ -522,8 +247,8 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             const icon = document.getElementById('copyIcon');
             const origText = btnText.innerText;
 
-            btnText.innerText = 'Đã Sao Chép!';
-            icon.className = 'bi bi-check-lg text-success';
+            btnText.innerText = 'Đã sao chép';
+            icon.className = 'bi bi-check-lg';
 
             setTimeout(() => {
                 btnText.innerText = origText;
@@ -663,6 +388,7 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
         }
 
         generatedData = parsed;
+        document.getElementById('resultWarning').classList.add('d-none');
         renderGeneratedResult(generatedData);
     }
 
@@ -672,12 +398,14 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
         const prompt = document.getElementById('promptInput').value.trim();
         const count = parseInt(document.getElementById('countSelect').value) || 6;
         const targetAge = document.getElementById('targetAgeSelect').value;
-        const apiKey = document.getElementById('apiKeyInput').value.trim();
 
         if (!prompt) return;
 
         document.getElementById('loadingBox').classList.remove('d-none');
         document.getElementById('resultContainer').classList.add('d-none');
+        document.getElementById('emptyResultBox').classList.add('d-none');
+        document.getElementById('resultSavebar').classList.add('d-none');
+        document.getElementById('resultWarning').classList.add('d-none');
         document.getElementById('btnGenerate').disabled = true;
 
         fetch('/api/ai/generate', {
@@ -686,8 +414,7 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             body: JSON.stringify({
                 prompt: prompt,
                 count: count,
-                target_age: targetAge,
-                api_key: apiKey
+                target_age: targetAge
             })
         })
         .then(res => res.json())
@@ -698,13 +425,20 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             if (data.status === 'success' && data.data) {
                 generatedData = data.data;
                 renderGeneratedResult(generatedData);
+                if (data.data.warning) {
+                    const warn = document.getElementById('resultWarning');
+                    warn.querySelector('span').textContent = data.data.warning;
+                    warn.classList.remove('d-none');
+                }
             } else {
+                if (!generatedData) document.getElementById('emptyResultBox').classList.remove('d-none');
                 alert('Có lỗi xảy ra: ' + (data.message || 'Không thể sinh nội dung'));
             }
         })
         .catch(err => {
             document.getElementById('loadingBox').classList.add('d-none');
             document.getElementById('btnGenerate').disabled = false;
+            if (!generatedData) document.getElementById('emptyResultBox').classList.remove('d-none');
             alert('Lỗi kết nối tới máy chủ AI: ' + err);
         });
     }
@@ -740,138 +474,64 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             itemImageModes[idx] = 'illustration';
 
             const cardCol = document.createElement('div');
-            cardCol.className = 'col-lg-6 col-12';
+            cardCol.className = 'k-card';
             cardCol.id = 'itemCard_' + idx;
 
             cardCol.innerHTML = `
-                <div class="card card-custom h-100 overflow-hidden d-flex flex-column" style="border-color: var(--kw-border);">
-                    <div class="row g-0 flex-grow-1">
-                        <!-- Left Side: Image Preview & Mode Switcher -->
-                        <div class="col-sm-5 d-flex flex-column bg-light border-end" style="border-color: var(--kw-border) !important;">
-                            <div style="height: 180px; position: relative; overflow: hidden; cursor: pointer;" onclick="browseItemImage(${idx})" title="Nhấp để duyệt & chọn ảnh mới">
-                                <img src="${escapeHtml(illustImg)}" id="itemImg_${idx}" style="width: 100%; height: 100%; object-fit: cover;" alt="${escapeHtml(it.name_vi)}">
-                                
-                                <div class="position-absolute top-0 start-0 m-2">
-                                    <span class="badge bg-white text-dark shadow-xs" style="font-size: 0.75rem;">#${idx + 1}</span>
-                                </div>
-                                <div class="position-absolute top-0 end-0 m-2" onclick="event.stopPropagation()">
-                                    <div class="form-check m-0 bg-white px-2 py-0.5 rounded shadow-xs">
-                                        <input class="form-check-input item-select-checkbox" type="checkbox" id="checkItem_${idx}" ${it.is_selected !== false ? 'checked' : ''} onchange="updateSelectedCount()">
-                                        <label class="form-check-label small fw-medium" for="checkItem_${idx}">Chọn</label>
-                                    </div>
-                                </div>
-                                <div class="position-absolute bottom-0 start-0 end-0 py-1 bg-dark bg-opacity-60 text-white text-center" style="font-size: 0.7rem;">
-                                    <i class="bi bi-images me-1"></i> Đổi ảnh minh họa
-                                </div>
-                            </div>
-
-                            <!-- Toggle Illustration vs Real Photo Mode -->
-                            <div class="p-2 border-top bg-white d-flex gap-1" style="border-color: var(--kw-border) !important;">
-                                <button type="button" class="btn btn-sm btn-kw-primary flex-fill py-0.5 active" id="btnModeIllust_${idx}" onclick="toggleCardImageMode(${idx}, 'illustration')" style="font-size: 0.725rem;">
-                                    🎨 Minh họa
-                                </button>
-                                <button type="button" class="btn btn-sm btn-kw-outline flex-fill py-0.5" id="btnModeReal_${idx}" onclick="toggleCardImageMode(${idx}, 'real')" style="font-size: 0.725rem;">
-                                    📷 Đời thực
-                                </button>
-                            </div>
-
-                            <!-- Image URL Inputs -->
-                            <div class="p-2 bg-light border-top flex-grow-1" style="font-size: 0.75rem; border-color: var(--kw-border) !important;">
-                                <div class="mb-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-0.5">
-                                        <label class="form-label mb-0 fw-medium" style="font-size: 0.7rem;">Ảnh 3D Minh Họa:</label>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0 px-1.5" onclick="browseItemImage(${idx}, 'illustration')" style="font-size: 0.68rem;" title="Upload ảnh hoặc sinh prompt 3D Pixar">
-                                            <i class="bi bi-stars text-primary"></i> Đổi / Prompt AI
-                                        </button>
-                                    </div>
-                                    <input type="text" class="form-control form-control-sm text-truncate" style="font-size: 0.725rem;" id="imgInput_${idx}" value="${escapeHtml(illustImg)}" placeholder="URL ảnh 3D hoặc file tải lên">
-                                </div>
-                                <div>
-                                    <div class="d-flex justify-content-between align-items-center mb-0.5">
-                                        <label class="form-label mb-0 fw-medium" style="font-size: 0.7rem;">Ảnh Đời Thực (Real):</label>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0 px-1.5" onclick="browseItemImage(${idx}, 'real')" style="font-size: 0.68rem;" title="Upload ảnh thật hoặc sinh prompt National Geographic">
-                                            <i class="bi bi-camera text-info"></i> Đổi / Prompt Thật
-                                        </button>
-                                    </div>
-                                    <input type="text" class="form-control form-control-sm text-truncate" style="font-size: 0.725rem;" id="realImgInput_${idx}" value="${escapeHtml(realImg)}" placeholder="URL ảnh đời thực">
-                                </div>
-                            </div>
+                <div class="k-ai-card">
+                    <div style="display:grid;gap:8px;align-content:start">
+                        <div class="k-image-box ${illustImg ? '' : 'is-empty'}" onclick="browseItemImage(${idx})" title="Đổi ảnh minh hoạ">
+                            <img src="${escapeHtml(illustImg)}" id="itemImg_${idx}" alt="${escapeHtml(it.name_vi)}" ${illustImg ? '' : 'hidden'} onload="this.hidden=false;this.parentElement.classList.remove('is-empty');this.nextElementSibling?.remove()">
+                            ${illustImg ? '' : '<span class="k-xs">Chưa có ảnh</span>'}
                         </div>
-
-                        <!-- Right Side: Multi-Sensory & Bento Parent Guide -->
-                        <div class="col-sm-7 p-3 d-flex flex-column">
-                            <!-- Bilingual Names -->
-                            <div class="row g-1.5 mb-2">
-                                <div class="col-6">
-                                    <label class="form-label mb-0" style="font-size: 0.7rem;">Tên Tiếng Việt:</label>
-                                    <input type="text" class="form-control form-control-sm fw-semibold text-dark" id="nameVi_${idx}" value="${escapeHtml(it.name_vi || '')}" placeholder="Tên tiếng Việt">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label mb-0" style="font-size: 0.7rem;">English Name:</label>
-                                    <input type="text" class="form-control form-control-sm" style="color: #0284c7;" id="nameEn_${idx}" value="${escapeHtml(it.name_en || '')}" placeholder="English name">
-                                </div>
-                            </div>
-
-                            <!-- Phonics & SFX Row -->
-                            <div class="row g-1.5 mb-2">
-                                <div class="col-6">
-                                    <label class="form-label mb-0 text-primary" style="font-size: 0.7rem;">Phonics / Ngữ âm:</label>
-                                    <input type="text" class="form-control form-control-sm font-monospace" style="color: #8b5cf6;" id="phonics_${idx}" value="${escapeHtml(it.phonics_en || '')}" placeholder="/p-h-o-n-i-c-s/">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label mb-0 text-warning" style="font-size: 0.7rem;">SFX / Tiếng kêu:</label>
-                                    <input type="text" class="form-control form-control-sm" style="color: #d97706;" id="sfx_${idx}" value="${escapeHtml(it.sfx_sound || '')}" placeholder="Gừ gừ... Roarrrr!">
-                                </div>
-                            </div>
-
-                            <!-- Description -->
-                            <div class="mb-2">
-                                <label class="form-label mb-0" style="font-size: 0.7rem;">Mô Tả Cho Bé:</label>
-                                <textarea class="form-control form-control-sm text-muted" rows="2" style="font-size: 0.775rem; resize: none;" id="descVi_${idx}" placeholder="Mô tả ngắn gọn, dễ thương cho bé">${escapeHtml(it.description_vi || '')}</textarea>
-                            </div>
-
-                            <!-- Bento Parent Guide Box -->
-                            <div class="p-2.5 rounded-3 bg-light border mb-2 flex-grow-1" style="border-color: #e2e8f0 !important; font-size: 0.75rem;">
-                                <div class="fw-semibold text-secondary mb-1.5 d-flex align-items-center gap-1" style="font-size: 0.725rem;">
-                                    <i class="bi bi-person-heart text-danger"></i> Bento Card Cẩm Nang Phụ Huynh:
-                                </div>
-                                <div class="mb-1">
-                                    <span class="badge bg-warning bg-opacity-20 text-dark me-1" style="font-size: 0.65rem;">💡 Sự thật kỳ thú</span>
-                                    <input type="text" class="form-control form-control-sm mt-0.5" style="font-size: 0.725rem;" id="funFactVi_${idx}" value="${escapeHtml(it.fun_fact_vi || '')}" placeholder="Kiến thức khoa học kỳ thú gây tò mò cho bé">
-                                </div>
-                                <div class="mb-1">
-                                    <span class="badge bg-info bg-opacity-20 text-dark me-1" style="font-size: 0.65rem;">❓ Cha mẹ đố bé</span>
-                                    <input type="text" class="form-control form-control-sm mt-0.5" style="font-size: 0.725rem;" id="promptVi_${idx}" value="${escapeHtml(it.prompt_question_vi || '')}" placeholder="Câu hỏi gợi mở kích thích quan sát">
-                                </div>
-                                <div>
-                                    <span class="badge bg-success bg-opacity-20 text-dark me-1" style="font-size: 0.65rem;">🤸 Cùng bé vận động</span>
-                                    <input type="text" class="form-control form-control-sm mt-0.5" style="font-size: 0.725rem;" id="actionVi_${idx}" value="${escapeHtml(it.action_hint_vi || '')}" placeholder="Trò chơi thể chất hoặc mô phỏng tương tác">
-                                </div>
-                            </div>
-
-                            <!-- Actions Row -->
-                            <div class="d-flex justify-content-between align-items-center pt-1 border-top" style="border-color: var(--kw-border) !important;">
-                                <div class="d-flex gap-1">
-                                    <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.7rem;" onclick="playAudio('${escapeHtml(it.pronounce_vi_url || '')}', 'vi', document.getElementById('nameVi_${idx}').value)">
-                                        🇻🇳 Loa VN
-                                    </button>
-                                    <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.7rem;" onclick="playAudio('${escapeHtml(it.pronounce_en_url || '')}', 'en', document.getElementById('nameEn_${idx}').value)">
-                                        🇺🇸 Loa EN
-                                    </button>
-                                </div>
-                                <div class="d-flex align-items-center gap-1.5">
-                                    <span class="text-muted" style="font-size: 0.7rem;">YouTube:</span>
-                                    <input type="text" class="form-control form-control-sm font-monospace text-center py-0" style="width: 100px; font-size: 0.7rem;" id="youtube_${idx}" value="${escapeHtml(it.youtube_video_id || 'VbZ07n242-g')}">
-                                </div>
-                            </div>
+                        <div class="k-segment" role="group" aria-label="Ảnh đang xem">
+                            <button type="button" class="is-active" id="btnModeIllust_${idx}" onclick="toggleCardImageMode(${idx}, 'illustration')">Minh hoạ</button>
+                            <button type="button" id="btnModeReal_${idx}" onclick="toggleCardImageMode(${idx}, 'real')">Đời thực</button>
                         </div>
                     </div>
+                    <div style="display:grid;gap:8px;min-width:0;align-content:start">
+                        <div style="display:flex;gap:8px;align-items:flex-start">
+                            <label class="k-hit" style="margin:-6px -4px -6px -8px" title="Giữ thẻ này khi lưu"><input class="form-check-input item-select-checkbox m-0" type="checkbox" id="checkItem_${idx}" ${it.is_selected !== false ? 'checked' : ''} onchange="updateSelectedCount()" aria-label="Giữ thẻ ${escapeHtml(it.name_vi)}"></label>
+                            <div style="flex:1;min-width:0">
+                                <div class="k-row-title" style="overflow-wrap:anywhere">${escapeHtml(it.name_vi || '')}</div>
+                                <div class="k-muted" style="overflow-wrap:anywhere">${escapeHtml(it.name_en || '')}${it.phonics_en ? ' · ' + escapeHtml(it.phonics_en) : ''}</div>
+                                ${it.sfx_sound ? `<div class="k-xs k-muted">${escapeHtml(it.sfx_sound)}</div>` : ''}
+                            </div>
+                            <button type="button" class="k-btn k-btn-ghost k-btn-sm" aria-expanded="false" aria-controls="itemEdit_${idx}" onclick="toggleItemEditor(this, ${idx})">Sửa</button>
+                        </div>
+                    </div>
+                        <div id="itemEdit_${idx}" class="k-ai-edit" hidden>
+                            <div class="k-grid-2">
+                                <div class="k-field"><label class="k-mini-label" for="nameVi_${idx}">Tên tiếng Việt</label><input type="text" class="k-input" id="nameVi_${idx}" value="${escapeHtml(it.name_vi || '')}"></div>
+                                <div class="k-field"><label class="k-mini-label" for="nameEn_${idx}">Tên tiếng Anh</label><input type="text" class="k-input" id="nameEn_${idx}" value="${escapeHtml(it.name_en || '')}"></div>
+                            </div>
+                            <div class="k-grid-2">
+                                <div class="k-field"><label class="k-mini-label" for="phonics_${idx}">Phiên âm</label><input type="text" class="k-input" id="phonics_${idx}" value="${escapeHtml(it.phonics_en || '')}" placeholder="/ˈlaɪən/"></div>
+                                <div class="k-field"><label class="k-mini-label" for="sfx_${idx}">Tiếng kêu</label><input type="text" class="k-input" id="sfx_${idx}" value="${escapeHtml(it.sfx_sound || '')}"></div>
+                            </div>
+                            <div class="k-field"><label class="k-mini-label" for="descVi_${idx}">Mô tả cho bé</label><textarea class="k-textarea" id="descVi_${idx}">${escapeHtml(it.description_vi || '')}</textarea></div>
+                            <div class="k-field"><label class="k-mini-label" for="funFactVi_${idx}">Sự thật thú vị</label><input type="text" class="k-input" id="funFactVi_${idx}" value="${escapeHtml(it.fun_fact_vi || '')}"></div>
+                            <div class="k-field"><label class="k-mini-label" for="promptVi_${idx}">Câu hỏi cha mẹ đố bé</label><input type="text" class="k-input" id="promptVi_${idx}" value="${escapeHtml(it.prompt_question_vi || '')}"></div>
+                            <div class="k-field"><label class="k-mini-label" for="actionVi_${idx}">Gợi ý vận động</label><input type="text" class="k-input" id="actionVi_${idx}" value="${escapeHtml(it.action_hint_vi || '')}"></div>
+                            <div class="k-grid-2">
+                                <div class="k-field"><span class="k-mini-label">Ảnh 3D minh hoạ</span><div style="display:flex;gap:6px"><input type="text" class="k-input" id="imgInput_${idx}" value="${escapeHtml(illustImg)}" placeholder="URL ảnh" aria-label="URL ảnh 3D"><button type="button" class="k-btn k-btn-outline k-btn-icon" onclick="browseItemImage(${idx}, 'illustration')" aria-label="Chọn ảnh 3D" title="Chọn ảnh 3D"><i class="bi bi-image"></i></button></div></div>
+                                <div class="k-field"><span class="k-mini-label">Ảnh đời thực</span><div style="display:flex;gap:6px"><input type="text" class="k-input" id="realImgInput_${idx}" value="${escapeHtml(realImg)}" placeholder="URL ảnh" aria-label="URL ảnh đời thực"><button type="button" class="k-btn k-btn-outline k-btn-icon" onclick="browseItemImage(${idx}, 'real')" aria-label="Chọn ảnh đời thực" title="Chọn ảnh đời thực"><i class="bi bi-camera"></i></button></div></div>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                                <button type="button" class="k-btn k-btn-outline k-btn-sm" onclick="playAudio('${escapeHtml(it.pronounce_vi_url || '')}', 'vi', document.getElementById('nameVi_${idx}').value)"><i class="bi bi-volume-up"></i>Nghe tiếng Việt</button>
+                                <button type="button" class="k-btn k-btn-outline k-btn-sm" onclick="playAudio('${escapeHtml(it.pronounce_en_url || '')}', 'en', document.getElementById('nameEn_${idx}').value)"><i class="bi bi-volume-up"></i>Nghe tiếng Anh</button>
+                                <label class="k-mini-label" for="youtube_${idx}" style="margin-left:auto">YouTube</label>
+                                <input type="text" class="k-input k-mono" style="width:130px;min-height:32px;border-radius:8px" id="youtube_${idx}" value="${escapeHtml(it.youtube_video_id || 'VbZ07n242-g')}">
+                            </div>
+                        </div>
                 </div>
             `;
             grid.appendChild(cardCol);
         });
 
         document.getElementById('resultContainer').classList.remove('d-none');
+        document.getElementById('emptyResultBox').classList.add('d-none');
+        document.getElementById('resultSavebar').classList.remove('d-none');
         updateSelectedCount();
 
         // Scroll smoothly to preview
@@ -880,27 +540,19 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
 
     function toggleCardImageMode(idx, mode) {
         itemImageModes[idx] = mode;
-        const btnIllust = document.getElementById('btnModeIllust_' + idx);
-        const btnReal = document.getElementById('btnModeReal_' + idx);
         const img = document.getElementById('itemImg_' + idx);
+        document.getElementById('btnModeIllust_' + idx).classList.toggle('is-active', mode !== 'real');
+        document.getElementById('btnModeReal_' + idx).classList.toggle('is-active', mode === 'real');
+        const url = document.getElementById(mode === 'real' ? 'realImgInput_' + idx : 'imgInput_' + idx).value;
+        if (url) img.src = url;
+    }
 
-        if (mode === 'real') {
-            btnReal.classList.add('active', 'btn-kw-primary');
-            btnReal.classList.remove('btn-kw-outline');
-            btnIllust.classList.remove('active', 'btn-kw-primary');
-            btnIllust.classList.add('btn-kw-outline');
-
-            const realUrl = document.getElementById('realImgInput_' + idx).value;
-            if (realUrl) img.src = realUrl;
-        } else {
-            btnIllust.classList.add('active', 'btn-kw-primary');
-            btnIllust.classList.remove('btn-kw-outline');
-            btnReal.classList.remove('active', 'btn-kw-primary');
-            btnReal.classList.add('btn-kw-outline');
-
-            const illustUrl = document.getElementById('imgInput_' + idx).value;
-            if (illustUrl) img.src = illustUrl;
-        }
+    // Mở / đóng phần sửa chi tiết của một thẻ
+    function toggleItemEditor(button, idx) {
+        const panel = document.getElementById('itemEdit_' + idx);
+        panel.hidden = !panel.hidden;
+        button.setAttribute('aria-expanded', String(!panel.hidden));
+        button.textContent = panel.hidden ? 'Sửa' : 'Thu gọn';
     }
 
     function updatePackThumb(val) {
@@ -923,7 +575,7 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
     function browseItemImage(idx, mode = 'illustration') {
         const nameVi = (document.getElementById('nameVi_' + idx)?.value || '').trim();
         const nameEn = (document.getElementById('nameEn_' + idx)?.value || '').trim();
-        const query = nameVi || nameEn || 'Hà Mã';
+        const query = nameEn || nameVi;
 
         const inputId = (mode === 'real') ? ('realImgInput_' + idx) : ('imgInput_' + idx);
         const preferredStyle = (mode === 'real') ? 'real_photo' : 'pixar_3d';
@@ -1072,6 +724,8 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
 
     function resetForm() {
         document.getElementById('resultContainer').classList.add('d-none');
+        document.getElementById('resultSavebar').classList.add('d-none');
+        document.getElementById('emptyResultBox').classList.remove('d-none');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1098,8 +752,8 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             const nameEn = document.getElementById('nameEn_' + idx)?.value || it.name_en || nameVi;
 
             // Generate high-standard prompt for this item
-            const prompt3D = `Adorable cute baby ${nameEn}, friendly smiling face, big expressive sparkling eyes, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high quality --ar 1:1 --v 6.0`;
-            const promptReal = `Authentic high resolution wildlife photograph of a ${nameEn} in natural environment, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition --ar 1:1 --v 6.0`;
+            const prompt3D = `Adorable cute baby ${nameEn}, friendly smiling face, big expressive sparkling eyes, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, landscape 1920x1080 pixels --ar 16:9 --v 6.0`;
+            const promptReal = `Authentic high resolution wildlife photograph of a ${nameEn} in natural environment, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition, landscape 1920x1080 pixels --ar 16:9 --v 6.0`;
 
             packPromptsCache.push({
                 idx: idx,
@@ -1189,6 +843,13 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
+
+    // Tab gạch dưới: đổi aria-selected theo tab đang mở
+    document.querySelectorAll('#studioTabs [data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', () => {
+            document.querySelectorAll('#studioTabs .k-tab').forEach(t => t.setAttribute('aria-selected', String(t === tab)));
+        });
+    });
 
     // Initialize prompt display on load
     document.addEventListener('DOMContentLoaded', () => {

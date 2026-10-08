@@ -106,39 +106,27 @@
                          ========================================== -->
                     <div class="tab-pane fade" id="tab-ai-prompt" role="tabpanel">
                         <div class="card card-custom p-3.5 mb-3 bg-white">
-                            <div class="row g-2.5 align-items-end">
-                                <div class="col-md-5">
-                                    <label class="form-label small fw-semibold text-dark mb-1">
-                                        <i class="bi bi-lightbulb text-warning me-1"></i> Đối tượng / Chủ đề cần tạo:
-                                    </label>
-                                    <div class="input-group input-group-sm">
-                                        <input type="text" id="aiPromptKeyword" class="form-control" placeholder="Ví dụ: Hà Mã, Sư tử, Xe buýt, T-Rex..." onkeydown="if(event.key==='Enter'){ generateAiImagePrompts(); }">
-                                        <button type="button" class="btn btn-kw-primary" onclick="generateAiImagePrompts()">
-                                            <i class="bi bi-magic me-1"></i> Tạo Prompt AI
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-7">
+                                    <label class="form-label" for="aiPromptKeyword">Tên thẻ cần tạo ảnh</label>
+                                    <div class="d-flex gap-2">
+                                        <input type="text" id="aiPromptKeyword" class="form-control" placeholder="Tên tiếng Anh của thẻ, vd Tyrannosaurus Rex" onkeydown="if(event.key==='Enter'){ generateAiImagePrompts(); }">
+                                        <button type="button" class="btn btn-kw-primary" style="flex-shrink:0" onclick="generateAiImagePrompts()">
+                                            <i class="bi bi-magic"></i> Tạo prompt
                                         </button>
                                     </div>
+                                    <small class="text-muted d-block mt-1" id="aiPromptKeywordHint">Lấy từ tên tiếng Anh của thẻ đang chọn ảnh. Sửa tên rồi bấm Tạo prompt nếu muốn đổi.</small>
                                 </div>
 
-                                <div class="col-md-3">
-                                    <label class="form-label small fw-semibold text-dark mb-1">
-                                        <i class="bi bi-aspect-ratio text-info me-1"></i> Kích Thước & Tỉ Lệ:
-                                    </label>
-                                    <select id="aiPromptSizeSelect" class="form-select form-select-sm" onchange="generateAiImagePrompts()">
-                                        <option value="1:1|1024x1024" selected>Vuông 1:1 (1024x1024) - Chuẩn App</option>
-                                        <option value="4:3|1024x768">Ngang 4:3 (1024x768)</option>
-                                        <option value="3:4|768x1024">Dọc 3:4 (768x1024)</option>
-                                        <option value="16:9|1280x720">Rộng 16:9 (1280x720)</option>
+                                <div class="col-md-5">
+                                    <label class="form-label" for="aiPromptSizeSelect">Kích thước và tỉ lệ</label>
+                                    <select id="aiPromptSizeSelect" class="form-select" onchange="generateAiImagePrompts()">
+                                        <option value="16:9|1920x1080" selected>Ngang 16:9 (1920×1080), màn ngang điện thoại</option>
+                                        <option value="4:3|1024x768">Ngang 4:3 (1024×768)</option>
+                                        <option value="1:1|1024x1024">Vuông 1:1 (1024×1024)</option>
+                                        <option value="3:4|768x1024">Dọc 3:4 (768×1024)</option>
                                     </select>
-                                </div>
-
-                                <div class="col-md-4">
-                                    <div class="d-flex flex-wrap gap-1" id="aiPromptQuickTags">
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Hà Mã')">🦛 Hà Mã</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Sư tử')">🦁 Sư tử</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Cá heo')">🐬 Cá heo</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('Máy bay')">✈️ Máy bay</button>
-                                        <button type="button" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.75rem;" onclick="setPromptKeyword('T-Rex')">🦖 T-Rex</button>
-                                    </div>
+                                    <small class="text-muted d-block mt-1">&nbsp;</small>
                                 </div>
                             </div>
                         </div>
@@ -160,7 +148,7 @@
                                                 <i class="bi bi-copy me-1"></i> Sao Chép
                                             </button>
                                         </div>
-                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptPixarText">Adorable cute baby hippopotamus, chubby body, friendly smiling expression, big sparkling eyes, smooth 3D Pixar Disney animation style, soft warm studio lighting, vibrant cheerful pastel colors, clean solid light pastel background, 3D claymation render, Octane render, 8k, volumetric lighting, children educational book illustration, centered, full body shot, high resolution 1024x1024 pixels --ar 1:1 --v 6.0</div>
+                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptPixarText"><span class="text-muted">Prompt hiện ở đây sau khi có tên thẻ.</span></div>
                                         <div class="d-flex align-items-center justify-content-end pt-1.5 border-top">
                                             <a href="https://www.bing.com/images/create" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.725rem;">
                                                 <i class="bi bi-box-arrow-up-right me-1"></i> Mở Bing Creator
@@ -183,7 +171,7 @@
                                                 <i class="bi bi-copy me-1"></i> Sao Chép
                                             </button>
                                         </div>
-                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptRealText">Authentic high resolution wildlife photograph of a hippopotamus resting peacefully near a clean tropical African riverbank, National Geographic documentary style, sharp crisp focus on natural skin texture and gentle eyes, shot on 85mm lens f/2.8, photorealistic, beautiful natural daylight, detailed wildlife photography, clean uncluttered composition, high resolution 1024x1024 pixels --ar 1:1 --v 6.0</div>
+                                        <div class="p-2.5 rounded bg-light border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptRealText"><span class="text-muted">Prompt hiện ở đây sau khi có tên thẻ.</span></div>
                                         <div class="d-flex align-items-center justify-content-end pt-1.5 border-top">
                                             <a href="https://chatgpt.com" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.725rem;">
                                                 <i class="bi bi-box-arrow-up-right me-1"></i> Mở ChatGPT (DALL-E 3)
@@ -206,7 +194,7 @@
                                                 <i class="bi bi-copy me-1"></i> Sao Chép
                                             </button>
                                         </div>
-                                        <div class="p-2.5 rounded bg-white border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptColoringText">Clean bold black line art, coloring book page for toddlers and kids, cute friendly hippopotamus, segmented into distinct clear individual sections for easy coloring, thick closed outlines, well-defined large coloring areas, no shading, no gradients, no grey tones, pure solid white background, high contrast, minimalist cartoon illustration, printable coloring sheet, crisp vector lines, square format 1024x1024 pixels --ar 1:1 --v 6.0</div>
+                                        <div class="p-2.5 rounded bg-white border font-monospace text-dark flex-grow-1 mb-2.5" style="font-size: 0.75rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word;" id="promptColoringText"><span class="text-muted">Prompt hiện ở đây sau khi có tên thẻ.</span></div>
                                         <div class="d-flex align-items-center justify-content-between pt-1.5 border-top">
                                             <small class="text-success fw-medium" style="font-size: 0.7rem;">Viền khép kín, chia mảng</small>
                                             <a href="https://www.bing.com/images/create" target="_blank" class="btn btn-kw-outline btn-sm py-0.5 px-2" style="font-size: 0.725rem;">
@@ -354,7 +342,7 @@
         const rawQuery = (options.query || '').trim();
         const cleanQuery = rawQuery.replace(/coloring\s+page|line\s+art|outline\s+for\s+kids/gi, '').trim();
         document.getElementById('imgModalSearchInput').value = cleanQuery || rawQuery;
-        document.getElementById('aiPromptKeyword').value = cleanQuery || rawQuery || 'Hà Mã';
+        document.getElementById('aiPromptKeyword').value = cleanQuery || rawQuery;
         document.getElementById('imgModalDirectUrl').value = '';
 
         // Switch tab based on preference
@@ -520,13 +508,14 @@
     }
 
     function generateAiImagePrompts() {
-        const rawKw = document.getElementById('aiPromptKeyword').value.trim() || 'Hà Mã';
+        const rawKw = document.getElementById('aiPromptKeyword').value.trim();
+        if (!rawKw) return;
         const cleanKw = rawKw.replace(/coloring\s+page|line\s+art|outline\s+for\s+kids/gi, '').trim() || rawKw;
 
-        const sizeVal = document.getElementById('aiPromptSizeSelect')?.value || '1:1|1024x1024';
+        const sizeVal = document.getElementById('aiPromptSizeSelect')?.value || '16:9|1920x1080';
         const parts = sizeVal.split('|');
-        const ar = parts[0] || '1:1';
-        const res = parts[1] || '1024x1024';
+        const ar = parts[0] || '16:9';
+        const res = parts[1] || '1920x1080';
 
         fetch('/api/ai/image-prompt', {
             method: 'POST',
