@@ -73,3 +73,10 @@ Thumbs.db
 # Backend CMS: API key AI va tai khoan quan tri (khong dua len git)
 backend_web/data/secrets.json
 backend_web/data/secrets.json.tmp
+
+# Backend CMS: du lieu chay that (DB SQLite va anh/am thanh tai len), khong dua len git
+backend_web/data/*.sqlite
+backend_web/data/*.sqlite-*
+backend_web/public/uploads/**
+!backend_web/public/uploads/**/
+!backend_web/public/uploads/**/.gitkeep
