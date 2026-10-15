@@ -21,11 +21,12 @@ Người dùng giao tiếp bằng **tiếng Việt** → trả lời bằng ti�
 - **Giới hạn giờ chơi**: `core/services/screen_time_service.dart` lưu SharedPreferences
   `screen_time_<childId>_<yyyy-MM-dd>` (giây đã dùng) + `screen_time_bonus_<childId>_<ngày>` (gia hạn). Tự qua ngày lúc nửa đêm.
 - **Màn khoá** phủ toàn app qua `MaterialApp.builder` trong `main.dart` (`_ScreenTimeLockOverlay`), dùng `appNavigatorKey` (`core/navigation.dart`). Màn hình con KHÔNG tự kiểm tra lockout nữa.
-- **SQLite app** (`core/database/database_helper.dart`) version **3**: bật `PRAGMA foreign_keys` (onConfigure), bản vá dữ liệu mẫu `_patchSeedContent` chỉ chạy khi tạo/nâng cấp DB.
+- **SQLite app** (`core/database/database_helper.dart`) version **4** (v4: bảng `artworks`): bật `PRAGMA foreign_keys` (onConfigure), bản vá dữ liệu mẫu `_patchSeedContent` chỉ chạy khi tạo/nâng cấp DB.
 - **Asset thiếu**: `BundledAssets` (trong `core/utils/image_helper.dart`) đọc AssetManifest lúc splash; đường dẫn `assets/...` không có thật bị bỏ qua (thư mục `assets/images`, `assets/audio` hiện đang rỗng).
 - **Âm thanh** (`core/services/audio_service.dart`): `playPronunciation` ưu tiên file phát âm từ CMS rồi mới TTS; pitch luôn 1.0; tự chọn giọng offline chất lượng cao; mỗi yêu cầu mới huỷ yêu cầu cũ (`_requestId`); log `[Audio hh:mm:ss]` ở debug. `speakVietnameseAfterTransition` cho câu chào khi mở màn hình.
 - **Máy chủ nội dung**: `ContentServerConfigService.instance.ready` phải được `await` trước khi gọi mạng. API `/api/packs/{id}/download` trả URL file trên server dạng tương đối (`/uploads/...`), app tự ghép domain qua `ImageHelper.resolveUrl`.
 - **CMS**: `AdminController::makeUniqueId` tránh trùng ID; AI dùng Gemini `gemini-2.5-flash` (đổi qua env `GEMINI_MODEL`), lỗi trả về `data.warning`.
+- **Góc Sáng Tạo & Thành Tích**: tô màu bấm ♥ → `ArtworkService` lưu PNG vào `<documents>/artworks/<childId>/<id>.png` + nét vẽ JSON trong bảng `artworks` (mở lại tô tiếp qua `ColoringGameScreen(resumeArtwork:)`). Màn `screens/profile/child_showcase_screen.dart` (mở từ popup Hồ Sơ) có tab tranh + tab thành tích; huy hiệu tính từ `DatabaseHelper.getAchievementCounts` (activity_logs, thêm action `win_memory_game`, `save_artwork`).
 
 ## UI đã làm lại gần đây
 - `screens/learning/games/coloring_game_screen.dart`: toàn màn hình (immersiveSticky), thanh trên 44dp gồm ← | nút bảng màu (giữa, mở lưới 12 màu) | ⇄ đổi tranh (lưới ảnh thu nhỏ) + ♥ lưu; khung vẽ không viền, cao hết cỡ; tranh nét (`coloring_outline_url`) vẽ multiply đè lên nét tô; nét lưu toạ độ chuẩn hoá.
