@@ -6,6 +6,7 @@ import '../core/services/screen_time_service.dart';
 import '../core/theme/app_theme.dart';
 import '../models/child_model.dart';
 import '../screens/profile/add_child_dialog.dart';
+import '../screens/profile/child_showcase_screen.dart';
 import '../screens/profile/profile_selection_screen.dart';
 
 class ChildProfilePopup extends StatefulWidget {
@@ -70,6 +71,49 @@ class _ChildProfilePopupState extends State<ChildProfilePopup> {
     );
   }
 
+  Widget _buildShowcaseButton({
+    required String emoji,
+    required String label,
+    required Color color,
+    required int tab,
+  }) {
+    return Material(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          final nav = Navigator.of(context);
+          nav.pop();
+          nav.push(MaterialPageRoute(builder: (_) => ChildShowcaseScreen(child: widget.child, initialTab: tab)));
+        },
+        child: Container(
+          height: 56,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(emoji, style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.kidTitle.copyWith(fontSize: 14, color: AppColors.textDark),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
@@ -126,6 +170,30 @@ class _ChildProfilePopupState extends State<ChildProfilePopup> {
                   style: AppTextStyles.configCaption.copyWith(fontSize: 12),
                 ),
                 SizedBox(height: isLandscape ? 8 : 12),
+
+                // Góc Sáng Tạo (tranh đã lưu) + Thành Tích
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildShowcaseButton(
+                        emoji: '🎨',
+                        label: 'Góc Sáng Tạo',
+                        color: AppColors.primary,
+                        tab: 0,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildShowcaseButton(
+                        emoji: '🏆',
+                        label: 'Thành Tích',
+                        color: const Color(0xFFF59E0B),
+                        tab: 1,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: isLandscape ? 8 : 10),
 
                 // Avatar Picker Collapsible / Toggle
                 if (!_isChangingAvatar) ...[

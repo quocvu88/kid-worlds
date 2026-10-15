@@ -11,6 +11,7 @@ import '../../models/screen_time_model.dart';
 import '../../models/topic_model.dart';
 import '../../models/topic_item_model.dart';
 import '../../models/activity_log_model.dart';
+import '../../models/artwork_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -19,7 +20,8 @@ class DatabaseHelper {
   DatabaseHelper._init();
 
   /// v3: bật foreign keys, chuyển các bản vá dữ liệu mẫu sang migration (chạy 1 lần), dọn dữ liệu mồ côi.
-  static const int _dbVersion = 3;
+  /// v4: thêm bảng artworks (Góc Sáng Tạo).
+  static const int _dbVersion = 4;
 
   Future<void> _configureDB(Database db) async {
     // SQLite mặc định TẮT foreign keys → ON DELETE CASCADE không chạy nếu thiếu dòng này
@@ -69,6 +71,27 @@ class DatabaseHelper {
       await _patchSeedContent(db);
       await _cleanupOrphans(db);
     }
+    if (oldVersion < 4) {
+      await _createArtworksTable(db);
+    }
+  }
+
+  Future<void> _createArtworksTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS artworks (
+        id TEXT PRIMARY KEY,
+        child_id TEXT NOT NULL,
+        topic_id TEXT,
+        item_id TEXT,
+        title TEXT,
+        image_path TEXT NOT NULL,
+        strokes_json TEXT,
+        created_at TEXT,
+        updated_at TEXT,
+        FOREIGN KEY(child_id) REFERENCES children(id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_artworks_child ON artworks(child_id, updated_at)');
   }
 
   /// Xoá dữ liệu mồ côi tạo ra trước khi bật foreign keys (ví dụ khi đã xoá bé/chủ đề).
@@ -193,6 +216,9 @@ class DatabaseHelper {
         FOREIGN KEY(child_id) REFERENCES children(id) ON DELETE CASCADE
       )
     ''');
+
+    // 6. Artworks (Góc Sáng Tạo)
+    await _createArtworksTable(db);
 
     // Seed Initial Sample Data
     await _seedInitialData(db);
@@ -524,6 +550,7 @@ class DatabaseHelper {
     await db.transaction((txn) async {
       // Xoá tường minh (phòng khi foreign keys không khả dụng trên nền tảng nào đó)
       await txn.delete('activity_logs', where: 'child_id = ?', whereArgs: [id]);
+      await txn.delete('artworks', where: 'child_id = ?', whereArgs: [id]);
       await txn.delete('screen_time_settings', where: 'child_id = ?', whereArgs: [id]);
       await txn.delete('children', where: 'id = ?', whereArgs: [id]);
     });
@@ -762,6 +789,99 @@ class DatabaseHelper {
       orderBy: 'timestamp DESC',
     );
     return maps.map((e) => ActivityLog.fromMap(e)).toList();
+  }
+
+  // Artworks (Góc Sáng Tạo) – file ảnh do ArtworkService quản lý
+  Future<void> upsertArtwork(Artwork artwork) async {
+    final db = await database;
+    await db.insert('artworks', artwork.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Artwork>> getArtworks(String childId) async {
+    final db = await database;
+    final maps = await db.query('artworks', where: 'child_id = ?', whereArgs: [childId], orderBy: 'updated_at DESC');
+    return maps.map((e) => Artwork.fromMap(e)).toList();
+  }
+
+  Future<Artwork?> getArtwork(String id) async {
+    final db = await database;
+    final maps = await db.query('artworks', where: 'id = ?', whereArgs: [id]);
+    return maps.isEmpty ? null : Artwork.fromMap(maps.first);
+  }
+
+  Future<void> deleteArtwork(String id) async {
+    final db = await database;
+    await db.delete('artworks', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Số liệu cho trang Thành Tích: đếm theo loại hành động + số ngày có học.
+  Future<Map<String, int>> getAchievementCounts(String childId) async {
+    final db = await database;
+    Future<int> count(String sql) async {
+      final r = await db.rawQuery(sql, [childId]);
+      return (r.first.values.first as int?) ?? 0;
+    }
+
+    final words = await count(
+      "SELECT COUNT(DISTINCT item_id) FROM activity_logs WHERE child_id = ? "
+      "AND action_type IN ('listen_pronounce', 'view_card', 'listen_phonics')",
+    );
+    final listens = await count(
+      "SELECT COUNT(*) FROM activity_logs WHERE child_id = ? AND action_type IN ('listen_pronounce', 'listen_phonics')",
+    );
+    final videos = await count(
+      "SELECT COUNT(*) FROM activity_logs WHERE child_id = ? AND action_type IN ('watch_youtube', 'watch_video')",
+    );
+    final memoryWins = await count(
+      "SELECT COUNT(*) FROM activity_logs WHERE child_id = ? AND action_type = 'win_memory_game'",
+    );
+    final artworks = await count('SELECT COUNT(*) FROM artworks WHERE child_id = ?');
+
+    // Chủ đề đã xem hết mọi thẻ
+    final topicsDone = await count('''
+      SELECT COUNT(*) FROM (
+        SELECT ti.topic_id
+        FROM topic_items ti
+        LEFT JOIN (
+          SELECT DISTINCT item_id FROM activity_logs WHERE child_id = ? AND action_type = 'view_card'
+        ) v ON v.item_id = ti.id
+        GROUP BY ti.topic_id
+        HAVING COUNT(*) > 0 AND COUNT(v.item_id) = COUNT(*)
+      )
+    ''');
+
+    // Ngày có học (theo giờ máy) → tổng số ngày + chuỗi ngày liên tiếp gần nhất
+    final dayRows = await db.rawQuery(
+      'SELECT DISTINCT substr(timestamp, 1, 10) AS d FROM activity_logs WHERE child_id = ? ORDER BY d DESC',
+      [childId],
+    );
+    final days = dayRows.map((r) => DateTime.tryParse(r['d'] as String? ?? '')).whereType<DateTime>().toList();
+    // Chia các ngày (mới → cũ) thành từng chuỗi liên tiếp
+    var streak = 0; // chuỗi hiện tại (vẫn tính nếu hôm nay chưa học nhưng hôm qua có học)
+    var bestStreak = 0; // chuỗi dài nhất từng đạt → huy hiệu không bị mất khi bé nghỉ 1 hôm
+    var run = 0;
+    for (var i = 0; i < days.length; i++) {
+      run = (i > 0 && days[i - 1].difference(days[i]).inDays == 1) ? run + 1 : 1;
+      if (run > bestStreak) bestStreak = run;
+      if (run == i + 1) streak = run; // vẫn đang trong chuỗi bắt đầu từ ngày gần nhất
+    }
+    if (days.isNotEmpty) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      if (today.difference(days.first).inDays > 1) streak = 0;
+    }
+
+    return {
+      'words': words,
+      'listens': listens,
+      'videos': videos,
+      'memory_wins': memoryWins,
+      'artworks': artworks,
+      'topics_done': topicsDone,
+      'active_days': days.length,
+      'streak': streak,
+      'best_streak': bestStreak,
+    };
   }
 
   Future<Map<String, dynamic>> getChildStats(String childId) async {

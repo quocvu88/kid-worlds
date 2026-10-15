@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'dart:ui' as ui;
@@ -5,9 +6,12 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/services/artwork_service.dart';
 import '../../../core/services/audio_service.dart';
+import '../../../core/services/screen_time_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/image_helper.dart';
+import '../../../models/artwork_model.dart';
 import '../../../models/topic_item_model.dart';
 import '../../../models/topic_model.dart';
 
@@ -20,6 +24,32 @@ class _Stroke {
   final List<Offset> points = [];
 
   _Stroke({required this.color, required this.width, required this.isEraser});
+
+  // Lưu gọn: điểm làm tròn 4 chữ số và trải phẳng [x0, y0, x1, y1, ...]
+  Map<String, dynamic> toJson() => {
+        'c': color.toARGB32(),
+        'w': width,
+        'e': isEraser ? 1 : 0,
+        'p': [
+          for (final pt in points) ...[
+            double.parse(pt.dx.toStringAsFixed(4)),
+            double.parse(pt.dy.toStringAsFixed(4)),
+          ],
+        ],
+      };
+
+  static _Stroke fromJson(Map<String, dynamic> json) {
+    final stroke = _Stroke(
+      color: Color(json['c'] as int),
+      width: (json['w'] as num).toDouble(),
+      isEraser: json['e'] == 1,
+    );
+    final flat = (json['p'] as List).cast<num>();
+    for (var i = 0; i + 1 < flat.length; i += 2) {
+      stroke.points.add(Offset(flat[i].toDouble(), flat[i + 1].toDouble()));
+    }
+    return stroke;
+  }
 }
 
 class ColoringGameScreen extends StatefulWidget {
@@ -27,11 +57,15 @@ class ColoringGameScreen extends StatefulWidget {
   final List<TopicItem> items;
   final TopicItem? currentItem;
 
+  /// Mở lại tranh đã lưu để tô tiếp (Góc Sáng Tạo).
+  final Artwork? resumeArtwork;
+
   const ColoringGameScreen({
     super.key,
     required this.topic,
     required this.items,
     this.currentItem,
+    this.resumeArtwork,
   });
 
   @override
@@ -47,6 +81,27 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
 
   /// Tăng giá trị để vẽ lại canvas mà không rebuild cả màn hình.
   final ValueNotifier<int> _repaint = ValueNotifier<int>(0);
+
+  /// Tranh đã lưu đang được tô tiếp → bấm Lưu sẽ ghi đè thay vì tạo bản mới.
+  String? _savedArtworkId;
+  bool _isSaving = false;
+
+  /// Kích thước khung vẽ gần nhất (để xuất ảnh đúng tỉ lệ như trên màn hình).
+  Size _canvasSize = Size.zero;
+
+  // Zoom/kéo tranh bằng 2 ngón: 1 ngón = tô, 2 ngón = phóng to/thu nhỏ + kéo.
+  // Toạ độ màn hình → toạ độ tranh: (p - _pan) / _zoom.
+  static const double _maxZoom = 5.0;
+  double _zoom = 1.0;
+  Offset _pan = Offset.zero;
+  final ValueNotifier<int> _view = ValueNotifier<int>(0);
+  final Map<int, Offset> _pointers = {};
+  bool _isZooming = false; // giữ chế độ zoom tới khi nhấc hết ngón
+  DateTime _strokeStartedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  double _zoomStartScale = 1.0;
+  Offset _zoomStartPan = Offset.zero;
+  double _zoomStartDistance = 0;
+  Offset _zoomStartFocal = Offset.zero;
 
   // Tranh nét (outline) được nạp thành ui.Image để vẽ chồng lên nét tô bằng BlendMode.multiply
   ui.Image? _outlineImage;
@@ -80,6 +135,17 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     // Ẩn status bar + thanh điều hướng để dành tối đa chỗ cho khung vẽ (vuốt từ mép để hiện lại)
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _activeItem = widget.currentItem ?? (widget.items.isNotEmpty ? widget.items.first : _dummyItem());
+    final resume = widget.resumeArtwork;
+    if (resume != null) {
+      _activeItem = widget.items.firstWhere((it) => it.id == resume.itemId, orElse: () => _activeItem);
+      _savedArtworkId = resume.id;
+      try {
+        final list = jsonDecode(resume.strokesJson) as List;
+        _strokes.addAll(list.map((e) => _Stroke.fromJson(Map<String, dynamic>.from(e as Map))));
+      } catch (e) {
+        debugPrint('Không đọc được nét vẽ của tranh ${resume.id}: $e');
+      }
+    }
     AudioService.instance.speakVietnameseAfterTransition('Bé hãy chọn màu yêu thích và tô tranh nhé!', isActive: () => mounted);
     _loadOutline();
   }
@@ -122,7 +188,9 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
       _activeItem = it;
       _strokes.clear();
       _currentStroke = null;
+      _savedArtworkId = null; // tranh khác → lần lưu sau là tranh mới
     });
+    _resetZoom();
     _loadOutline();
     _repaint.value++;
   }
@@ -141,6 +209,7 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
   void dispose() {
     _disposeOutlineStream();
     _repaint.dispose();
+    _view.dispose();
     _confettiController.dispose();
     AudioService.instance.stop(); // thoát game thì ngừng đọc
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -161,11 +230,75 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     _repaint.value++;
   }
 
-  void _saveArtwork() {
+  /// Xuất tranh thành PNG (nền trắng + nét tô + tranh nét) đúng tỉ lệ khung vẽ trên màn hình.
+  Future<Uint8List?> _exportPng() async {
+    if (_canvasSize.isEmpty) return null;
+    // Gấp đôi kích thước màn hình cho nét, giới hạn chiều rộng 1600px để file không quá nặng
+    final scale = math.min(2.0, 1600 / _canvasSize.width);
+    final size = _canvasSize * scale;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder, Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.white);
+    _ColoringPainter(strokes: _strokes, outline: _outlineImage, repaint: _repaint).paint(canvas, size);
+    final image = await recorder.endRecording().toImage(size.width.round(), size.height.round());
+    try {
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
+  }
+
+  Future<void> _saveArtwork() async {
+    if (_isSaving) return;
+    final child = ScreenTimeService.instance.currentChild;
+    void tell(String msg) {
+      AudioService.instance.speakVietnamese(msg);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+    }
+
+    if (_strokes.isEmpty) {
+      HapticFeedback.lightImpact();
+      tell('Bé hãy tô vài nét rồi mới lưu tranh nhé!');
+      return;
+    }
+    if (child == null || !ArtworkService.instance.isSupported) {
+      tell('Chưa lưu được tranh trên thiết bị này.');
+      return;
+    }
+
+    _isSaving = true;
+    try {
+      final png = await _exportPng();
+      if (png == null) return;
+      final saved = await ArtworkService.instance.save(
+        existingId: _savedArtworkId,
+        childId: child.id,
+        topicId: _activeItem.topicId,
+        itemId: _activeItem.id == 'item_default' ? null : _activeItem.id,
+        title: _activeItem.nameVi,
+        pngBytes: png,
+        strokesJson: jsonEncode(_strokes.map((s) => s.toJson()).toList()),
+      );
+      _savedArtworkId = saved.id;
+    } catch (e) {
+      debugPrint('Lưu tranh thất bại: $e');
+      if (mounted) tell('Ôi, chưa lưu được tranh. Bé thử lại nhé!');
+      return;
+    } finally {
+      _isSaving = false;
+    }
+    if (!mounted) return;
+    _showSavedDialog();
+  }
+
+  void _showSavedDialog() {
     HapticFeedback.heavyImpact();
     _confettiController.play();
-    AudioService.instance.speakVietnamese('Bé tô tranh thật xuất sắc! Bức tranh đã được lưu vào hồ sơ của bé!');
-    
+    AudioService.instance.speakVietnamese('Bé tô tranh thật xuất sắc! Bức tranh đã được lưu vào Góc Sáng Tạo của bé!');
+
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.70),
@@ -600,6 +733,95 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Cử chỉ trên khung vẽ (dùng Listener thô để tự phân biệt 1 ngón / 2 ngón,
+  // tránh GestureDetector pan "giành" mất cử chỉ zoom).
+  // ---------------------------------------------------------------------------
+
+  void _resetZoom() {
+    _zoom = 1.0;
+    _pan = Offset.zero;
+    _view.value++;
+  }
+
+  Offset _normalize(Offset screen, Size size) {
+    final p = (screen - _pan) / _zoom;
+    return Offset((p.dx / size.width).clamp(0.0, 1.0), (p.dy / size.height).clamp(0.0, 1.0));
+  }
+
+  void _beginZoom() {
+    final pts = _pointers.values.take(2).toList();
+    _zoomStartDistance = (pts[0] - pts[1]).distance;
+    _zoomStartFocal = (pts[0] + pts[1]) / 2;
+    _zoomStartScale = _zoom;
+    _zoomStartPan = _pan;
+  }
+
+  void _onPointerDown(PointerDownEvent e, Size size) {
+    _pointers[e.pointer] = e.localPosition;
+    if (size.width <= 0) return;
+
+    if (_pointers.length == 1 && !_isZooming) {
+      final stroke = _Stroke(
+        color: _selectedColor,
+        // Chia cho zoom để cỡ cọ trên màn hình giữ nguyên → phóng to thì tô được chi tiết nhỏ
+        width: _strokeWidth / _zoom / size.width,
+        isEraser: _isEraser,
+      )..points.add(_normalize(e.localPosition, size));
+      _currentStroke = stroke;
+      _strokeStartedAt = DateTime.now();
+      _strokes.add(stroke);
+      _repaint.value++;
+    } else if (_pointers.length >= 2) {
+      // Ngón thứ 2 chạm xuống ngay sau ngón đầu → đó là zoom, bỏ chấm/nét vừa lỡ vẽ
+      final stroke = _currentStroke;
+      if (stroke != null && DateTime.now().difference(_strokeStartedAt).inMilliseconds < 300) {
+        _strokes.remove(stroke);
+        _repaint.value++;
+      }
+      _currentStroke = null;
+      _isZooming = true;
+      _beginZoom();
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent e, Size size) {
+    if (!_pointers.containsKey(e.pointer)) return;
+    _pointers[e.pointer] = e.localPosition;
+
+    if (_isZooming) {
+      if (_pointers.length < 2 || _zoomStartDistance <= 0) return;
+      final pts = _pointers.values.take(2).toList();
+      final focal = (pts[0] + pts[1]) / 2;
+      final zoom = (_zoomStartScale * (pts[0] - pts[1]).distance / _zoomStartDistance).clamp(1.0, _maxZoom);
+      // Giữ điểm tranh nằm dưới tâm 2 ngón lúc bắt đầu luôn nằm dưới tâm 2 ngón hiện tại
+      final contentFocal = (_zoomStartFocal - _zoomStartPan) / _zoomStartScale;
+      final pan = focal - contentFocal * zoom;
+      _zoom = zoom;
+      _pan = Offset(
+        pan.dx.clamp(size.width * (1 - zoom), 0.0),
+        pan.dy.clamp(size.height * (1 - zoom), 0.0),
+      );
+      _view.value++;
+      return;
+    }
+
+    final stroke = _currentStroke;
+    if (stroke == null) return;
+    stroke.points.add(_normalize(e.localPosition, size));
+    _repaint.value++;
+  }
+
+  void _onPointerEnd(PointerEvent e) {
+    _pointers.remove(e.pointer);
+    if (_pointers.isEmpty) {
+      _isZooming = false;
+      _currentStroke = null;
+    } else if (_isZooming && _pointers.length >= 2) {
+      _beginZoom(); // còn ≥2 ngón: lấy mốc mới để tranh không bị giật
+    }
+  }
+
   Widget _buildDrawingArea() {
     final hasOutline = _hasOutline;
     final outlineReady = hasOutline && _outlineImage != null;
@@ -615,13 +837,9 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
         child: LayoutBuilder(
               builder: (context, constraints) {
                 final canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                _canvasSize = canvasSize;
 
-                Offset normalize(Offset p) => Offset(
-                      (p.dx / canvasSize.width).clamp(0.0, 1.0),
-                      (p.dy / canvasSize.height).clamp(0.0, 1.0),
-                    );
-
-                return Stack(
+                final content = Stack(
                   fit: StackFit.expand,
                   children: [
                     // Nền gợi ý (ảnh mờ) hoặc tranh nét trong lúc đang tải
@@ -638,35 +856,63 @@ class _ColoringGameScreenState extends State<ColoringGameScreen> {
                       ),
 
                     // Lớp vẽ: nét tô nằm DƯỚI tranh nét (multiply) nên không che mất đường viền
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onPanStart: (details) {
-                        if (canvasSize.width <= 0) return;
-                        final stroke = _Stroke(
-                          color: _selectedColor,
-                          width: _strokeWidth / canvasSize.width,
-                          isEraser: _isEraser,
-                        )..points.add(normalize(details.localPosition));
-                        _currentStroke = stroke;
-                        _strokes.add(stroke);
-                        _repaint.value++;
-                      },
-                      onPanUpdate: (details) {
-                        final stroke = _currentStroke;
-                        if (stroke == null) return;
-                        stroke.points.add(normalize(details.localPosition));
-                        _repaint.value++;
-                      },
-                      onPanEnd: (_) => _currentStroke = null,
-                      child: RepaintBoundary(
-                        child: CustomPaint(
-                          painter: _ColoringPainter(
-                            strokes: _strokes,
-                            outline: outlineReady ? _outlineImage : null,
-                            repaint: _repaint,
-                          ),
-                          size: Size.infinite,
+                    RepaintBoundary(
+                      child: CustomPaint(
+                        painter: _ColoringPainter(
+                          strokes: _strokes,
+                          outline: outlineReady ? _outlineImage : null,
+                          repaint: _repaint,
                         ),
+                        size: Size.infinite,
+                      ),
+                    ),
+                  ],
+                );
+
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown: (e) => _onPointerDown(e, canvasSize),
+                      onPointerMove: (e) => _onPointerMove(e, canvasSize),
+                      onPointerUp: _onPointerEnd,
+                      onPointerCancel: _onPointerEnd,
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: _view,
+                        builder: (context, _, child) => Transform(
+                          transform: Matrix4.diagonal3Values(_zoom, _zoom, 1)
+                            ..setTranslationRaw(_pan.dx, _pan.dy, 0),
+                          child: child,
+                        ),
+                        child: content,
+                      ),
+                    ),
+
+                    // Nút đưa tranh về kích thước ban đầu (chỉ hiện khi đang phóng to)
+                    Positioned(
+                      right: 12,
+                      bottom: 12,
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: _view,
+                        builder: (context, _, _) => _zoom > 1.01
+                            ? Material(
+                                color: Colors.white,
+                                shape: const CircleBorder(),
+                                elevation: 4,
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    _resetZoom();
+                                  },
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(10),
+                                    child: Icon(Icons.zoom_out_map_rounded, size: 26, color: AppColors.primary),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
                       ),
                     ),
                   ],

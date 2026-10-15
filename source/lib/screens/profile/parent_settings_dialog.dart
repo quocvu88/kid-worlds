@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../models/child_model.dart';
 import '../../models/screen_time_model.dart';
 import '../../core/services/screen_time_service.dart';
+import '../../core/services/artwork_service.dart';
 import '../../core/services/content_server_config_service.dart';
 import '../../widgets/change_pin_dialog.dart';
 import '../../widgets/content_server_config_dialog.dart';
@@ -134,6 +135,7 @@ class _ParentSettingsDialogState extends State<ParentSettingsDialog> {
 
     if (confirmed == true) {
       await DatabaseHelper.instance.deleteChild(child.id);
+      await ArtworkService.instance.deleteAllForChild(child.id);
       widget.onSettingsChanged?.call();
       await _loadData();
     }

@@ -4,7 +4,12 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:uuid/uuid.dart';
+
+import '../../../core/database/database_helper.dart';
 import '../../../core/services/audio_service.dart';
+import '../../../core/services/screen_time_service.dart';
+import '../../../models/activity_log_model.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/image_helper.dart';
 import '../../../models/topic_item_model.dart';
@@ -175,7 +180,21 @@ class _MemoryMatchGameScreenState extends State<MemoryMatchGameScreen> {
     }
   }
 
+  /// Ghi lại lần thắng để tính Thành Tích trong hồ sơ bé.
+  void _logVictory() {
+    final child = ScreenTimeService.instance.currentChild;
+    if (child == null) return;
+    DatabaseHelper.instance.insertActivityLog(ActivityLog(
+      id: const Uuid().v4(),
+      childId: child.id,
+      topicId: widget.topic.id,
+      actionType: 'win_memory_game',
+      durationSeconds: _secondsElapsed,
+    ));
+  }
+
   void _onGameVictory() {
+    _logVictory();
     _gameTimer?.cancel();
     _confettiController.play();
     HapticFeedback.heavyImpact();
