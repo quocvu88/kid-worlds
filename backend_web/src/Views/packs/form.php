@@ -49,7 +49,9 @@ $thumbUrl = $pack['thumbnail_url'] ?? '';
 
 $saveLabel = $isEdit ? 'Lưu thay đổi' : 'Tạo gói';
 if ($isEdit) {
-    $packHeaderActions = '<a class="k-btn k-btn-outline" href="/api/packs/' . urlencode($pack['id']) . '/download" target="_blank" rel="noopener"><i class="bi bi-download"></i>Xuất JSON</a>'
+    $packHeaderActions = '<button class="k-btn k-btn-outline" type="button" data-bs-toggle="modal" data-bs-target="#aiRewriteModal"><i class="bi bi-magic"></i>Viết lại bằng AI</button>'
+                       . '<div class="dropdown"><button class="k-btn k-btn-outline k-btn-icon" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Thêm thao tác"><i class="bi bi-three-dots"></i></button>'
+                       . '<ul class="dropdown-menu dropdown-menu-end"><li><a class="dropdown-item" href="/api/packs/' . urlencode($pack['id']) . '/download" target="_blank" rel="noopener"><i class="bi bi-download"></i>Xuất JSON</a></li></ul></div>'
                        . '<button class="k-btn k-btn-primary" type="submit" form="packForm">' . $saveLabel . '</button>';
     require __DIR__ . '/_header.php';
 } else { ?>
@@ -287,6 +289,7 @@ if ($isEdit) {
 
 </div>
 </form>
+<?php if ($isEdit) require __DIR__ . '/_ai_rewrite.php'; ?>
 
 <script>
     function browsePackFormThumb() {

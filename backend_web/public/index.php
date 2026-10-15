@@ -18,6 +18,11 @@ spl_autoload_register(function ($class) {
     }
 });
 
+// Thư viện cài bằng Composer (SDK Anthropic cho tính năng vẽ ảnh bằng Claude)
+if (is_file(__DIR__ . '/../vendor/autoload.php')) {
+    require __DIR__ . '/../vendor/autoload.php';
+}
+
 use KidsWorld\Backend\Controllers\AdminController;
 use KidsWorld\Backend\Controllers\ApiController;
 use KidsWorld\Backend\Controllers\AuthController;
@@ -81,6 +86,20 @@ if (str_starts_with($uri, '/api/')) {
         $admin->apiUploadImage();
     } elseif ($uri === '/api/media/list') {
         $admin->apiListUploadedImages();
+    } elseif ($uri === '/api/ai/claude-image' && $method === 'POST') {
+        $admin->apiClaudeImage();
+    } elseif (preg_match('#^/api/items/([^/]+)/image$#', $uri, $matches) && $method === 'POST') {
+        $admin->apiSetItemImage(urldecode($matches[1]));
+    } elseif (preg_match('#^/api/items/([^/]+)/real-photo$#', $uri, $matches) && $method === 'POST') {
+        $admin->apiItemRealPhoto(urldecode($matches[1]));
+    } elseif (preg_match('#^/api/packs/([^/]+)/thumbnail$#', $uri, $matches) && $method === 'POST') {
+        $admin->apiSetPackThumbnail(urldecode($matches[1]));
+    } elseif (preg_match('#^/api/packs/([^/]+)/ai-rewrite$#', $uri, $matches) && $method === 'POST') {
+        $admin->apiAiRewrite(urldecode($matches[1]));
+    } elseif (preg_match('#^/api/packs/([^/]+)/ai-rewrite/apply$#', $uri, $matches) && $method === 'POST') {
+        $admin->apiAiRewriteApply(urldecode($matches[1]));
+    } elseif (preg_match('#^/api/packs/([^/]+)/bump-version$#', $uri, $matches) && $method === 'POST') {
+        $admin->apiBumpPackVersion(urldecode($matches[1]));
     } elseif ($uri === '/api/ai/image-prompt') {
         $admin->apiGenerateImagePrompt();
     } elseif (preg_match('#^/api/packs/([^/]+)/download$#', $uri, $matches)) {

@@ -80,3 +80,6 @@ backend_web/data/*.sqlite-*
 backend_web/public/uploads/**
 !backend_web/public/uploads/**/
 !backend_web/public/uploads/**/.gitkeep
+
+# Backend CMS: thu vien Composer (cai bang composer install)
+backend_web/vendor/

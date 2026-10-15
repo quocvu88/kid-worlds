@@ -311,3 +311,8 @@ button.k-tab { padding: 0; border: 0; border-bottom: 2px solid transparent; back
 /* Nền rê của nút viền theo nền ngay sau nút: trên khối trắng nhạt hơn, trên nền trang đậm hơn */
 .k-card .k-btn-outline:hover, .k-top .k-btn-outline:hover, .k-savebar .k-btn-outline:hover, .k-card .btn-kw-outline:hover, .modal .btn-kw-outline:hover { background: var(--button-hover-surface); }
 .k-side-foot form .k-btn:hover { background: var(--danger-bg); color: var(--danger); }
+/* Lựa chọn dạng card (radio) */
+.k-choice { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface); cursor: pointer; min-width: 0; margin: 0; }
+.k-choice input { flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--primary); margin: 0; }
+.k-choice > span { min-width: 0; }
+.k-choice:has(input:checked) { border-color: var(--border-focus); box-shadow: 0 0 0 2px var(--ring-focus); }

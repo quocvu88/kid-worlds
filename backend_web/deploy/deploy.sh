@@ -35,6 +35,17 @@ rsync -av --delete \
     --exclude='deploy/' \
     "${SRC_DIR}/" "${APP_DIR}/"
 
+# Thư viện Composer (SDK Anthropic cho tính năng vẽ ảnh bằng Claude).
+# Bản upload có sẵn vendor/ thì dùng luôn; không có thì cài trên server.
+if [ ! -f "${APP_DIR}/vendor/autoload.php" ]; then
+    if command -v composer &>/dev/null; then
+        echo -e "${BLUE}==> Installing Composer dependencies...${NC}"
+        COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction -d "${APP_DIR}"
+    else
+        echo "[WARN] Chưa có vendor/ và chưa cài composer: tính năng vẽ ảnh bằng Claude sẽ không chạy."
+    fi
+fi
+
 # Re-apply safe permissions
 chown -R www-data:www-data "${APP_DIR}"
 chmod -R 775 "${APP_DIR}/data"

@@ -135,6 +135,33 @@ class TopicItem {
         return $success;
     }
 
+    /** Đặt ảnh minh hoạ chính (phần tử đầu của images_json), giữ các ảnh phụ phía sau. */
+    public static function updatePrimaryImage(string $id, string $url): bool {
+        $item = self::find($id);
+        if (!$item) return false;
+        $images = json_decode($item['images_json'] ?? '[]', true);
+        $images = is_array($images) ? array_values($images) : [];
+        $images[0] = $url;
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE topic_items SET images_json = ? WHERE id = ?");
+        return $stmt->execute([json_encode($images), $id]);
+    }
+
+    /** Cập nhật một số trường chữ (đã lọc theo danh sách cho phép ở nơi gọi). */
+    public static function updateTextFields(string $id, array $fields): bool {
+        if (!$fields) return true;
+        $sets = implode(', ', array_map(fn($f) => "$f = ?", array_keys($fields)));
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE topic_items SET $sets WHERE id = ?");
+        return $stmt->execute([...array_values($fields), $id]);
+    }
+
+    public static function updateRealImage(string $id, string $url): bool {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE topic_items SET real_image_url = ? WHERE id = ?");
+        return $stmt->execute([$url, $id]);
+    }
+
     public static function updateColoringOutline(string $id, string $url): bool {
         $db = Database::getConnection();
         $stmt = $db->prepare("UPDATE topic_items SET coloring_outline_url = ? WHERE id = ?");

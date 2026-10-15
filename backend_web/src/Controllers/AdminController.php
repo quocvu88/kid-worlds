@@ -6,6 +6,9 @@ use KidsWorld\Backend\Models\TopicPack;
 use KidsWorld\Backend\Models\TopicItem;
 use KidsWorld\Backend\Services\AiService;
 use KidsWorld\Backend\Services\Auth;
+use KidsWorld\Backend\Services\ClaudeImageService;
+use KidsWorld\Backend\Services\RealPhotoService;
+use KidsWorld\Backend\Services\AiRewriteService;
 use KidsWorld\Backend\Services\Settings;
 
 class AdminController {
@@ -403,8 +406,7 @@ class AdminController {
     public function aiGenerator(): void {
         $this->render('ai/generator', [
             'title' => 'Khởi Tạo Bộ Nội Dung Tự Động Bằng AI - Kids World CMS',
-            'hasAiKey' => Settings::geminiApiKey() !== '',
-            'aiModel' => Settings::geminiModel(),
+            'aiProviders' => AiService::availableProviders(),
         ]);
     }
 
@@ -419,6 +421,9 @@ class AdminController {
             'keySource' => $fileKey !== '' ? 'file' : ($envKey !== '' ? 'env' : 'none'),
             'maskedKey' => Settings::maskKey($fileKey !== '' ? $fileKey : $envKey),
             'model' => Settings::geminiModel(),
+            'claudeKeySource' => trim((string)Settings::get('anthropic_api_key', '')) !== '' ? 'file' : (trim((string)(getenv('ANTHROPIC_API_KEY') ?: '')) !== '' ? 'env' : 'none'),
+            'claudeMaskedKey' => Settings::maskKey(Settings::anthropicApiKey()),
+            'claudeModel' => Settings::claudeModel(),
         ]);
     }
 
@@ -443,6 +448,28 @@ class AdminController {
             }
             Settings::save($values);
             $this->redirect('/settings?saved=ai');
+        }
+
+        if ($action === 'save_claude') {
+            $key = trim((string)($_POST['anthropic_api_key'] ?? ''));
+            $model = trim((string)($_POST['claude_model'] ?? ''));
+            if ($key !== '' && !str_starts_with($key, 'sk-ant-')) {
+                $this->settings('Claude API key phải bắt đầu bằng sk-ant-.');
+            }
+            if ($model !== '' && !preg_match('/^[a-z0-9.-]+$/', $model)) {
+                $this->settings('Tên model Claude chỉ gồm chữ thường, số, dấu chấm, gạch ngang.');
+            }
+            $values = ['claude_model' => $model !== '' ? $model : null];
+            if ($key !== '') {
+                $values['anthropic_api_key'] = $key; // để trống thì giữ key đang lưu
+            }
+            Settings::save($values);
+            $this->redirect('/settings?saved=claude#claude');
+        }
+
+        if ($action === 'clear_claude_key') {
+            Settings::save(['anthropic_api_key' => null]);
+            $this->redirect('/settings?saved=claude_cleared#claude');
         }
 
         if ($action === 'clear_key') {
@@ -480,7 +507,8 @@ class AdminController {
         $targetAge = trim($input['target_age'] ?? '3-8');
         try {
             // Key chỉ lấy ở máy chủ (trang Cài đặt hoặc GEMINI_API_KEY), không nhận từ trình duyệt
-            $data = AiService::generate($prompt, $count, $targetAge);
+            set_time_limit(200);
+            $data = AiService::generate($prompt, $count, $targetAge, trim((string)($input['provider'] ?? '')) ?: null);
             echo json_encode(['status' => 'success', 'data' => $data]);
         } catch (\Throwable $e) {
             http_response_code(500);
@@ -737,6 +765,155 @@ class AdminController {
             'count' => count($images),
             'images' => $images
         ]);
+        exit;
+    }
+
+    /** POST /api/ai/claude-image {name_en, name_vi, style}: Claude vẽ SVG cho một thẻ. */
+    public function apiClaudeImage(): void {
+        header('Content-Type: application/json');
+        set_time_limit(200);
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        try {
+            $result = ClaudeImageService::drawSvg(
+                (string)($body['name_en'] ?? ''),
+                (string)($body['name_vi'] ?? ''),
+                (string)($body['style'] ?? 'illustration'),
+                is_array($body['members'] ?? null) ? $body['members'] : []
+            );
+            echo json_encode(['status' => 'success', 'data' => $result]);
+        } catch (\Throwable $e) {
+            http_response_code($e instanceof \InvalidArgumentException ? 400 : 502);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /** POST /api/items/{id}/image {field: image|coloring_outline, url}: gán ảnh vừa tải lên cho thẻ. */
+    public function apiSetItemImage(string $id): void {
+        header('Content-Type: application/json');
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $field = (string)($body['field'] ?? '');
+        $url = trim((string)($body['url'] ?? ''));
+        if (!TopicItem::find($id) || !str_starts_with($url, '/uploads/images/') || !in_array($field, ['image', 'coloring_outline'], true)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Thẻ, loại ảnh hoặc đường dẫn ảnh không hợp lệ.']);
+            exit;
+        }
+        $ok = $field === 'image' ? TopicItem::updatePrimaryImage($id, $url) : TopicItem::updateColoringOutline($id, $url);
+        echo json_encode(['status' => $ok ? 'success' : 'error']);
+        exit;
+    }
+
+    /** POST /api/items/{id}/real-photo: tìm ảnh chụp thật trên Wikimedia Commons, tải về và gán cho thẻ. */
+    public function apiItemRealPhoto(string $id): void {
+        header('Content-Type: application/json');
+        set_time_limit(90);
+        $item = TopicItem::find($id);
+        if (!$item) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy thẻ.']);
+            exit;
+        }
+        try {
+            $photo = RealPhotoService::findAndSave((string)$item['name_en'], (string)$item['name_vi']);
+            TopicItem::updateRealImage($id, $photo['url']);
+            echo json_encode(['status' => 'success', 'data' => $photo]);
+        } catch (\Throwable $e) {
+            http_response_code($e instanceof \InvalidArgumentException ? 400 : 502);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /** POST /api/packs/{id}/thumbnail {url}: gán ảnh đại diện vừa tải lên cho gói. */
+    public function apiSetPackThumbnail(string $id): void {
+        header('Content-Type: application/json');
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $url = trim((string)($body['url'] ?? ''));
+        if (!TopicPack::find($id) || !str_starts_with($url, '/uploads/images/')) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Gói hoặc đường dẫn ảnh không hợp lệ.']);
+            exit;
+        }
+        echo json_encode(['status' => TopicPack::updateThumbnail($id, $url) ? 'success' : 'error']);
+        exit;
+    }
+
+    /** POST /api/packs/{id}/ai-rewrite {provider, instruction, pack: bool, items: bool}: AI đề xuất bản viết lại, chưa lưu. */
+    public function apiAiRewrite(string $id): void {
+        header('Content-Type: application/json');
+        set_time_limit(200);
+        $pack = TopicPack::find($id);
+        if (!$pack) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy gói.']);
+            exit;
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        try {
+            $result = AiRewriteService::rewrite(
+                $pack,
+                TopicItem::byPack($id),
+                !empty($body['pack']),
+                !empty($body['items']),
+                mb_substr(trim((string)($body['instruction'] ?? '')), 0, 1000),
+                trim((string)($body['provider'] ?? '')) ?: null
+            );
+            echo json_encode(['status' => 'success', 'data' => $result]);
+        } catch (\Throwable $e) {
+            http_response_code($e instanceof \InvalidArgumentException ? 400 : 502);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /** POST /api/packs/{id}/ai-rewrite/apply {pack: {field: value}, items: [{id, field: value}]}: lưu các thay đổi đã chọn. */
+    public function apiAiRewriteApply(string $id): void {
+        header('Content-Type: application/json');
+        if (!TopicPack::find($id)) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy gói.']);
+            exit;
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $changed = 0;
+
+        $packFields = array_intersect_key(is_array($body['pack'] ?? null) ? $body['pack'] : [], AiRewriteService::PACK_FIELDS);
+        $packFields = array_map(fn($v) => trim((string)$v), $packFields);
+        if (isset($packFields['title_vi']) && $packFields['title_vi'] === '') unset($packFields['title_vi']);
+        if (isset($packFields['title_en']) && $packFields['title_en'] === '') unset($packFields['title_en']);
+        if ($packFields) {
+            TopicPack::updateTextFields($id, $packFields);
+            $changed += count($packFields);
+        }
+
+        $packItemIds = array_column(TopicItem::byPack($id), 'id');
+        foreach (is_array($body['items'] ?? null) ? $body['items'] : [] as $row) {
+            if (!is_array($row) || !in_array($row['id'] ?? null, $packItemIds, true)) continue;
+            $fields = array_map(fn($v) => trim((string)$v), array_intersect_key($row, AiRewriteService::ITEM_FIELDS));
+            if ($fields) {
+                TopicItem::updateTextFields($row['id'], $fields);
+                $changed += count($fields);
+            }
+        }
+
+        if ($changed > 0) {
+            TopicPack::bumpVersion($id); // để app nhận nội dung mới
+        }
+        echo json_encode(['status' => 'success', 'changed' => $changed, 'version' => (int)TopicPack::find($id)['version']]);
+        exit;
+    }
+
+    /** POST /api/packs/{id}/bump-version: tăng phiên bản để app nhận ảnh mới. */
+    public function apiBumpPackVersion(string $id): void {
+        header('Content-Type: application/json');
+        if (!TopicPack::find($id)) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Không tìm thấy gói.']);
+            exit;
+        }
+        TopicPack::bumpVersion($id);
+        echo json_encode(['status' => 'success', 'version' => (int)TopicPack::find($id)['version']]);
         exit;
     }
 

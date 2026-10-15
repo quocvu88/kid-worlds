@@ -4,6 +4,8 @@ $messages = [
     'ai' => ['success', 'bi-check-circle-fill', 'Đã lưu cài đặt AI.'],
     'key_cleared' => ['warning', 'bi-trash3-fill', 'Đã xoá API key. Trang Tạo bằng AI sẽ dùng bộ thẻ mẫu cho tới khi có key mới.'],
     'password' => ['success', 'bi-check-circle-fill', 'Đã đổi mật khẩu.'],
+    'claude' => ['success', 'bi-check-circle-fill', 'Đã lưu cài đặt Claude.'],
+    'claude_cleared' => ['warning', 'bi-trash3-fill', 'Đã xoá Claude API key. Soạn thẻ và vẽ ảnh bằng Claude sẽ tắt cho tới khi có key mới.'],
 ];
 $msg = $messages[$_GET['saved'] ?? ''] ?? null;
 ?>
@@ -44,6 +46,42 @@ $msg = $messages[$_GET['saved'] ?? ''] ?? null;
                 <button class="k-btn k-btn-primary" type="submit">Lưu cài đặt AI</button>
                 <?php if ($keySource === 'file'): ?>
                     <button class="k-btn k-btn-danger" type="submit" name="action" value="clear_key" onclick="return confirm('Xoá API key đang lưu? Trang Tạo bằng AI sẽ dùng bộ thẻ mẫu cho tới khi có key mới.');"><i class="bi bi-trash3"></i>Xoá key</button>
+                <?php endif; ?>
+            </div>
+        </form>
+    </section>
+
+    <section class="k-card" id="claude">
+        <div class="k-card-head"><h2>Claude soạn thẻ và vẽ ảnh</h2></div>
+        <form class="k-card-body" method="POST" action="/settings" style="display:grid;gap:16px">
+            <input type="hidden" name="_csrf" value="<?= kw_e($csrf) ?>">
+            <input type="hidden" name="action" value="save_claude">
+
+            <?php if ($claudeKeySource === 'file'): ?>
+                <div class="k-flash k-flash-success"><i class="bi bi-check-circle-fill"></i><span>Đang dùng key <span class="k-mono"><?= kw_e($claudeMaskedKey) ?></span> lưu trong cài đặt.</span></div>
+            <?php elseif ($claudeKeySource === 'env'): ?>
+                <div class="k-flash k-flash-info"><i class="bi bi-info-circle-fill"></i><span>Đang dùng key <span class="k-mono"><?= kw_e($claudeMaskedKey) ?></span> từ biến môi trường ANTHROPIC_API_KEY. Key lưu ở đây sẽ được ưu tiên.</span></div>
+            <?php else: ?>
+                <div class="k-flash k-flash-warning"><i class="bi bi-exclamation-triangle-fill"></i><span>Chưa có Claude API key nên chưa dùng Claude để soạn thẻ hay vẽ ảnh được.</span></div>
+            <?php endif; ?>
+
+            <p class="k-muted" style="margin:0;max-width:65ch">Claude soạn bộ thẻ ở trang Tạo bằng AI (có cả key Gemini thì chọn được dùng AI nào khi tạo), và vẽ tranh minh hoạ vector phẳng cùng tranh nét tô màu khổ ngang 1920×1080. CMS tự đổi ảnh sang PNG trước khi lưu, app không cần cập nhật. Claude không vẽ ảnh thật, ô Ảnh thật vẫn lấy từ kho ảnh.</p>
+
+            <div class="k-field">
+                <label class="k-label" for="anthropicKey">Claude API key</label>
+                <input class="k-input k-mono" id="anthropicKey" name="anthropic_api_key" type="password" autocomplete="off" spellcheck="false"
+                       placeholder="<?= $claudeKeySource === 'file' ? 'Để trống thì giữ key đang lưu' : 'sk-ant-…' ?>">
+                <span class="k-hint">Tạo key ở Claude Console (console.anthropic.com), key bắt đầu bằng sk-ant-. Lưu trong data/secrets.json, không hiện lại sau khi lưu.</span>
+            </div>
+            <div class="k-field">
+                <label class="k-label" for="claudeModel">Model</label>
+                <input class="k-input k-mono" id="claudeModel" name="claude_model" type="text" value="<?= kw_e($claudeModel) ?>" placeholder="claude-opus-5-5">
+                <span class="k-hint">Để trống thì dùng claude-opus-5-5. Muốn rẻ hơn thì thử claude-sonnet-5-5, nét vẽ có thể đơn giản hơn.</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="k-btn k-btn-primary" type="submit">Lưu cài đặt Claude</button>
+                <?php if ($claudeKeySource === 'file'): ?>
+                    <button class="k-btn k-btn-danger" type="submit" name="action" value="clear_claude_key" onclick="return confirm('Xoá Claude API key đang lưu?');"><i class="bi bi-trash3"></i>Xoá key</button>
                 <?php endif; ?>
             </div>
         </form>

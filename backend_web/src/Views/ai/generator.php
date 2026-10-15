@@ -34,8 +34,23 @@ ob_start(); ?>
                             <div class="k-field"><label class="k-label" for="targetAgeSelect">Độ tuổi</label>
                                 <select id="targetAgeSelect" class="k-select"><option value="2-5">2–5 tuổi</option><option value="3-8" selected>3–8 tuổi</option><option value="6-10">6–10 tuổi</option></select></div>
                         </div>
-                        <?php if (!empty($hasAiKey)): ?>
-                            <p class="k-muted" style="margin:0"><i class="bi bi-check-circle-fill" style="color:var(--success)"></i> Dùng Gemini <span class="k-mono"><?= kw_e($aiModel ?? '') ?></span>. <a href="/settings#ai" style="color:var(--foreground);font-weight:500">Đổi ở Cài đặt</a></p>
+                        <?php $aiProviders = $aiProviders ?? []; $providerNames = ['gemini' => 'Gemini', 'claude' => 'Claude']; ?>
+                        <?php if (count($aiProviders) > 1): ?>
+                            <fieldset class="k-field" style="border:0;margin:0;padding:0">
+                                <legend class="k-label" style="float:none;margin-bottom:6px;font-size:14px">AI soạn thẻ</legend>
+                                <div class="k-grid-2">
+                                    <?php foreach ($aiProviders as $key => $model): ?>
+                                        <label class="k-choice">
+                                            <input type="radio" name="aiProvider" value="<?= $key ?>" <?= $key === array_key_first($aiProviders) ? 'checked' : '' ?>>
+                                            <span><span class="k-row-title"><?= $providerNames[$key] ?></span><span class="k-xs k-muted k-mono k-truncate" style="display:block"><?= kw_e($model) ?></span></span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <a class="k-xs k-muted" href="/settings#ai" style="margin-top:4px">Đổi model ở Cài đặt</a>
+                            </fieldset>
+                        <?php elseif (count($aiProviders) === 1): $onlyKey = array_key_first($aiProviders); ?>
+                            <input type="hidden" name="aiProvider" value="<?= $onlyKey ?>">
+                            <p class="k-muted" style="margin:0"><i class="bi bi-check-circle-fill" style="color:var(--success)"></i> Dùng <?= $providerNames[$onlyKey] ?> <span class="k-mono"><?= kw_e($aiProviders[$onlyKey]) ?></span>. <a href="/settings#<?= $onlyKey === 'claude' ? 'claude' : 'ai' ?>" style="color:var(--foreground);font-weight:500">Đổi ở Cài đặt</a></p>
                         <?php else: ?>
                             <div class="k-flash k-flash-warning"><i class="bi bi-exclamation-triangle-fill"></i><span>Chưa có API key nên kết quả là bộ thẻ mẫu, không theo chủ đề. <a href="/settings#ai" style="color:var(--foreground);font-weight:500;text-decoration:underline">Thêm key ở Cài đặt</a></span></div>
                         <?php endif; ?>
@@ -400,6 +415,11 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
         const targetAge = document.getElementById('targetAgeSelect').value;
 
         if (!prompt) return;
+        const providerInput = document.querySelector('input[name="aiProvider"]:checked') || document.querySelector('input[name="aiProvider"]');
+        const provider = providerInput ? providerInput.value : '';
+        try { if (provider) localStorage.setItem('kwAiProvider', provider); } catch (e) {}
+        document.getElementById('loadingTitle').textContent = (provider === 'claude' ? 'Claude' : provider === 'gemini' ? 'Gemini' : 'AI') + ' đang soạn thẻ';
+        document.getElementById('loadingSubtitle').textContent = provider === 'claude' ? 'Thường mất 30–90 giây.' : 'Thường mất khoảng 20 giây.';
 
         document.getElementById('loadingBox').classList.remove('d-none');
         document.getElementById('resultContainer').classList.add('d-none');
@@ -414,7 +434,8 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             body: JSON.stringify({
                 prompt: prompt,
                 count: count,
-                target_age: targetAge
+                target_age: targetAge,
+                provider: provider
             })
         })
         .then(res => res.json())
@@ -850,6 +871,13 @@ Yêu cầu xuất DUY NHẤT mã JSON theo cấu trúc chuẩn:
             document.querySelectorAll('#studioTabs .k-tab').forEach(t => t.setAttribute('aria-selected', String(t === tab)));
         });
     });
+
+    // Nhớ AI soạn thẻ đã chọn lần trước
+    try {
+        const savedProvider = localStorage.getItem('kwAiProvider');
+        const savedRadio = savedProvider && document.querySelector('input[name="aiProvider"][value="' + savedProvider + '"]');
+        if (savedRadio && savedRadio.type === 'radio') savedRadio.checked = true;
+    } catch (e) {}
 
     // Initialize prompt display on load
     document.addEventListener('DOMContentLoaded', () => {

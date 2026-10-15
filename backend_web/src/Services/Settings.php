@@ -60,6 +60,15 @@ class Settings {
         return trim((string)(self::get('gemini_model') ?: getenv('GEMINI_MODEL') ?: 'gemini-2.5-flash'));
     }
 
+    /** API key Claude (Anthropic): ưu tiên file cài đặt, sau đó biến môi trường ANTHROPIC_API_KEY. */
+    public static function anthropicApiKey(): string {
+        return trim((string)(self::get('anthropic_api_key') ?: getenv('ANTHROPIC_API_KEY') ?: ''));
+    }
+
+    public static function claudeModel(): string {
+        return trim((string)(self::get('claude_model') ?: 'claude-opus-5-5'));
+    }
+
     /** "AIza…x7Qk" — đủ để nhận ra key nào đang lưu mà không lộ key. */
     public static function maskKey(string $key): string {
         if ($key === '') return '';

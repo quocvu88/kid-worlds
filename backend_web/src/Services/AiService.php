@@ -6,7 +6,18 @@ class AiService {
     /**
      * Generate complete topic pack and items based on prompt and options
      */
-    public static function generate(string $prompt, int $count = 6, string $targetAge = '3-8', ?string $apiKey = null): array {
+    /** Các nhà cung cấp AI soạn thẻ đang có key: ['gemini' => model, 'claude' => model]. */
+    public static function availableProviders(): array {
+        $providers = [];
+        if (Settings::geminiApiKey() !== '') $providers['gemini'] = Settings::geminiModel();
+        if (Settings::anthropicApiKey() !== '') $providers['claude'] = Settings::claudeModel();
+        return $providers;
+    }
+
+    /**
+     * @param string|null $provider 'gemini' | 'claude'; bỏ trống thì dùng nhà cung cấp đầu tiên đang có key.
+     */
+    public static function generate(string $prompt, int $count = 6, string $targetAge = '3-8', ?string $provider = null): array {
         $cleanPrompt = trim($prompt);
         if (empty($cleanPrompt)) {
             $cleanPrompt = 'Khám phá thế giới động vật vui nhộn';
@@ -20,24 +31,28 @@ class AiService {
             $ageMax = (int)$m[2];
         }
 
-        // If API key is provided or found in ENV, attempt live LLM call
-        $key = $apiKey ?: Settings::geminiApiKey();
+        // Chọn nhà cung cấp: đúng cái người dùng chọn nếu có key, không thì cái đầu tiên đang có key
+        $providers = self::availableProviders();
+        if (!$provider || !isset($providers[$provider])) {
+            $provider = array_key_first($providers);
+        }
         $warning = null;
-        if (!empty($key)) {
+        if ($provider) {
+            $label = $provider === 'claude' ? 'Claude' : 'Gemini';
             try {
-                $llmResult = self::callLlm($cleanPrompt, $count, $ageMin, $ageMax, $key);
+                $llmResult = $provider === 'claude'
+                    ? self::callClaude($cleanPrompt, $count, $ageMin, $ageMax)
+                    : self::callLlm($cleanPrompt, $count, $ageMin, $ageMax, Settings::geminiApiKey());
                 if (!empty($llmResult) && isset($llmResult['pack']) && isset($llmResult['items'])) {
                     return $llmResult;
                 }
-                $warning = 'AI không trả về dữ liệu hợp lệ, đã dùng bộ mẫu có sẵn.';
+                $warning = $label . ' không trả về dữ liệu hợp lệ, đã dùng bộ mẫu có sẵn.';
             } catch (\Throwable $e) {
                 // Báo lý do cho người dùng thay vì im lặng rơi về template
-                $warning = 'Gọi AI thất bại: ' . $e->getMessage() . ' — đã dùng bộ mẫu có sẵn.';
+                $warning = 'Gọi ' . $label . ' thất bại: ' . $e->getMessage() . ' — đã dùng bộ mẫu có sẵn.';
             }
-        }
-
-        if (empty($key)) {
-            $warning = 'Chưa có API key Gemini nên đây là bộ thẻ mẫu có sẵn, không phải nội dung AI soạn theo chủ đề của bạn. Thêm key ở trang Cài đặt.';
+        } else {
+            $warning = 'Chưa có API key Gemini hay Claude nên đây là bộ thẻ mẫu có sẵn, không phải nội dung AI soạn theo chủ đề của bạn. Thêm key ở trang Cài đặt.';
         }
 
         // Smart Knowledge Generator according to Kids World Multi-Sensory template
@@ -843,6 +858,95 @@ PROMPT;
     /**
      * Call Live LLM (Gemini or OpenAI) with strict JSON Schema
      */
+    /** Schema JSON bắt Claude trả đúng cấu trúc pack + items (structured outputs). */
+    private static function claudeOutputSchema(): array {
+        $str = ['type' => 'string'];
+        $int = ['type' => 'integer'];
+        $pack = [
+            'id' => $str, 'title_vi' => $str, 'title_en' => $str,
+            'category' => ['type' => 'string', 'enum' => ['animals', 'vehicles', 'dinosaurs', 'space', 'fruits', 'nature', 'general']],
+            'theme_color' => $str, 'background_url' => $str,
+            'target_age_min' => $int, 'target_age_max' => $int, 'target_gender' => $str,
+            'thumbnail_url' => $str, 'description_vi' => $str, 'description_en' => $str,
+            'version' => $int, 'size_mb' => ['type' => 'number'], 'is_active' => $int,
+        ];
+        $item = [
+            'id' => $str, 'name_vi' => $str, 'name_en' => $str, 'phonics_en' => $str,
+            'description_vi' => $str, 'description_en' => $str,
+            'images' => ['type' => 'array', 'items' => $str],
+            'real_image_url' => $str, 'sfx_sound' => $str, 'youtube_video_id' => $str,
+            'fun_fact_vi' => $str, 'fun_fact_en' => $str,
+            'prompt_question_vi' => $str, 'prompt_question_en' => $str, 'action_hint_vi' => $str,
+            'map_x' => $int, 'map_y' => $int, 'sort_order' => $int, 'is_selected' => ['type' => 'boolean'],
+        ];
+        $object = fn(array $props) => [
+            'type' => 'object',
+            'properties' => $props,
+            'required' => array_keys($props),
+            'additionalProperties' => false,
+        ];
+        return $object([
+            'pack' => $object($pack),
+            'items' => ['type' => 'array', 'items' => $object($item)],
+        ]);
+    }
+
+    /** Soạn bộ thẻ bằng Claude (SDK Anthropic), trả cùng cấu trúc với Gemini. */
+    private static function callClaude(string $prompt, int $count, int $ageMin, int $ageMax): ?array {
+        $apiKey = Settings::anthropicApiKey();
+        if ($apiKey === '') {
+            throw new \RuntimeException('Chưa có Claude API key');
+        }
+        $model = Settings::claudeModel();
+        $masterPrompt = self::buildPromptTemplate($prompt, $count, "{$ageMin}-{$ageMax}")
+            . "\n\n=== LƯU Ý RIÊNG ===\n"
+            . "- Không bịa đường dẫn: để images là mảng rỗng [], real_image_url, thumbnail_url, background_url và youtube_video_id là chuỗi rỗng \"\". CMS sẽ gán ảnh và video sau.\n"
+            . "- Tạo đúng {$count} thẻ, mỗi thẻ là một sự vật khác nhau, đúng chủ đề, tên tiếng Anh chính xác (dùng để vẽ ảnh cho thẻ).";
+
+        $client = new \Anthropic\Client(apiKey: $apiKey);
+        try {
+            // Beta endpoint để bật fallbacks: nếu model từ chối theo chính sách, server tự thử model thay thế.
+            $message = $client->beta->messages->create(
+                model: $model,
+                maxTokens: 16000,
+                messages: [['role' => 'user', 'content' => $masterPrompt]],
+                outputConfig: [
+                    'effort' => 'medium',
+                    'format' => ['type' => 'json_schema', 'schema' => self::claudeOutputSchema()],
+                ],
+                fallbacks: 'default',
+                betas: ['server-side-fallback-2026-07-01'],
+                requestOptions: ['timeout' => 170, 'maxRetries' => 1],
+            );
+        } catch (\Anthropic\Core\Exceptions\AuthenticationException $e) {
+            throw new \RuntimeException('Claude API key không hợp lệ hoặc đã bị thu hồi');
+        } catch (\Anthropic\Core\Exceptions\RateLimitException $e) {
+            throw new \RuntimeException('Claude đang giới hạn tốc độ (429), thử lại sau ít phút');
+        } catch (\Anthropic\Core\Exceptions\APIStatusException $e) {
+            throw new \RuntimeException('Claude (' . $model . ') trả lỗi: ' . $e->getMessage());
+        } catch (\Anthropic\Core\Exceptions\APIConnectionException $e) {
+            throw new \RuntimeException('Không kết nối được tới Claude: ' . $e->getMessage());
+        }
+
+        if ($message->stopReason === 'refusal') {
+            throw new \RuntimeException('Claude từ chối soạn chủ đề này');
+        }
+        if ($message->stopReason === 'max_tokens') {
+            throw new \RuntimeException('Nội dung quá dài, Claude chưa soạn xong. Giảm số thẻ rồi thử lại');
+        }
+
+        foreach ($message->content as $block) {
+            if ($block->type === 'text') {
+                $parsed = json_decode($block->text, true);
+                if (isset($parsed['pack'], $parsed['items'])) {
+                    $parsed['source'] = 'claude_api:' . $message->model;
+                    return $parsed;
+                }
+            }
+        }
+        return null;
+    }
+
     private static function callLlm(string $prompt, int $count, int $ageMin, int $ageMax, string $apiKey): ?array {
         $masterPrompt = self::buildPromptTemplate($prompt, $count, "{$ageMin}-{$ageMax}");
 

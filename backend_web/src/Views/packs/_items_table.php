@@ -4,9 +4,11 @@
 <div style="display:flex;gap:8px;flex-wrap:wrap">
     <div class="k-search"><i class="bi bi-search"></i><input class="k-input" type="search" id="itemSearchInput" placeholder="Tìm thẻ" aria-label="Tìm thẻ"></div>
     <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="k-btn k-btn-outline" type="button" data-bs-toggle="modal" data-bs-target="#claudeBatchModal" <?= empty($items) ? 'disabled' : '' ?>><i class="bi bi-images"></i>Tạo bộ ảnh</button>
         <a class="k-btn k-btn-outline" href="/packs/<?= urlencode($pack['id']) ?>/items/create"><i class="bi bi-plus-lg"></i>Thêm thẻ</a>
     </div>
 </div>
+<?php if (!empty($items)) require __DIR__ . '/_claude_batch.php'; ?>
 
 <section class="k-card" style="overflow-x:auto">
     <table class="k-table k-table-stack">

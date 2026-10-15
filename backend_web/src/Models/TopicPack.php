@@ -73,6 +73,28 @@ class TopicPack {
         ]);
     }
 
+    /** Cập nhật một số trường chữ (đã lọc theo danh sách cho phép ở nơi gọi). */
+    public static function updateTextFields(string $id, array $fields): bool {
+        if (!$fields) return true;
+        $sets = implode(', ', array_map(fn($f) => "$f = ?", array_keys($fields)));
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE topic_packs SET $sets, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        return $stmt->execute([...array_values($fields), $id]);
+    }
+
+    public static function updateThumbnail(string $id, string $url): bool {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE topic_packs SET thumbnail_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        return $stmt->execute([$url, $id]);
+    }
+
+    /** Tăng phiên bản để app thấy gói có bản cập nhật (sau khi đổi ảnh hàng loạt). */
+    public static function bumpVersion(string $id): bool {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("UPDATE topic_packs SET version = version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        return $stmt->execute([$id]);
+    }
+
     public static function update(string $id, array $data): bool {
         $db = Database::getConnection();
         $stmt = $db->prepare("
